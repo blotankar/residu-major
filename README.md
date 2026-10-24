@@ -58,9 +58,9 @@ Copy-Item .env.example .env
 Open `backend/.env` and configure the values required by the backend:
 
 ```dotenv
-DATABASE_URL="YOUR_SUPABASE_DATABASE_URL"
-DIRECT_URL="YOUR_SUPABASE_DIRECT_URL"
-JWT_SECRET="YOUR_PRIVATE_JWT_SECRET"
+DATABASE_URL="postgresql://postgres.hofwigzqksfajkwiuewp:Residuguard%40110011@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.hofwigzqksfajkwiuewp:Residuguard%40110011@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+JWT_SECRET="residuguard-development-secret-change-before-production"
 ```
 
 Replace the placeholders with the actual values supplied by the project maintainer. These example values are not real credentials.
