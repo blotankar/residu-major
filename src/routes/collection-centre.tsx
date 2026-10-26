@@ -9,12 +9,7 @@ import { StatCard } from "@/components/residuguard/StatCard";
 import { StatusBadge } from "@/components/residuguard/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import {
   Table,
@@ -51,8 +46,7 @@ export const Route = createFileRoute("/collection-centre")({
       },
       {
         property: "og:description",
-        content:
-          "Accept eligible milk, hold animals under withdrawal and issue milk batch IDs.",
+        content: "Accept eligible milk, hold animals under withdrawal and issue milk batch IDs.",
       },
     ],
   }),
@@ -81,15 +75,18 @@ function CentreDashboard() {
       .then(([cattleRecords, batchRecords]) => {
         setCattle(cattleRecords);
         setBatches(batchRecords);
-        setSelected(cattleRecords
-          .filter((cow) => {
-            const latest = cow.treatments[0];
-            return !latest || (
-              latest.withdrawalEnds !== null &&
-              new Date(latest.withdrawalEnds).getTime() < Date.now()
-            );
-          })
-          .map((cow) => cow.id));
+        setSelected(
+          cattleRecords
+            .filter((cow) => {
+              const latest = cow.treatments[0];
+              return (
+                !latest ||
+                (latest.withdrawalEnds !== null &&
+                  new Date(latest.withdrawalEnds).getTime() < Date.now())
+              );
+            })
+            .map((cow) => cow.id),
+        );
         setError(null);
       })
       .catch((err) => {
@@ -102,41 +99,34 @@ function CentreDashboard() {
   }, []);
 
   const intake = useMemo(
-    () => cattle.map((cow) => {
-      const latest = cow.treatments[0];
-      const clearsOn = latest?.withdrawalEnds
-        ? new Date(latest.withdrawalEnds)
-        : undefined;
-      const held = Boolean(
-        latest && (!clearsOn || clearsOn.getTime() >= Date.now()),
-      );
-      return {
-        cow,
-        wd: {
-          status: (held ? "HOLD" : "SAFE") as Status,
-          reason: held
-            ? clearsOn
-              ? `Milk is held until ${formatDate(clearsOn)}.`
-              : "Latest treatment has no confirmed withdrawal end date."
-            : latest
-              ? `Latest withdrawal ended ${formatDate(clearsOn!)}.`
-              : "No antibiotic treatment recorded.",
-          clearsOn,
-        },
-      };
-    }),
+    () =>
+      cattle.map((cow) => {
+        const latest = cow.treatments[0];
+        const clearsOn = latest?.withdrawalEnds ? new Date(latest.withdrawalEnds) : undefined;
+        const held = Boolean(latest && (!clearsOn || clearsOn.getTime() >= Date.now()));
+        return {
+          cow,
+          wd: {
+            status: (held ? "HOLD" : "SAFE") as Status,
+            reason: held
+              ? clearsOn
+                ? `Milk is held until ${formatDate(clearsOn)}.`
+                : "Latest treatment has no confirmed withdrawal end date."
+              : latest
+                ? `Latest withdrawal ended ${formatDate(clearsOn!)}.`
+                : "No antibiotic treatment recorded.",
+            clearsOn,
+          },
+        };
+      }),
     [cattle],
   );
 
-  const eligible = intake.filter(
-    (record) => record.wd.status === "SAFE",
-  );
+  const eligible = intake.filter((record) => record.wd.status === "SAFE");
 
   function toggle(id: string, on: boolean) {
     setSelected((previous) =>
-      on
-        ? [...new Set([...previous, id])]
-        : previous.filter((item) => item !== id),
+      on ? [...new Set([...previous, id])] : previous.filter((item) => item !== id),
     );
   }
 
@@ -175,18 +165,9 @@ function CentreDashboard() {
     >
       {/* Statistics */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Farmers Registered"
-          value={farmersCount}
-          icon={Users}
-        />
+        <StatCard label="Farmers Registered" value={farmersCount} icon={Users} />
 
-        <StatCard
-          label="Animals Eligible Today"
-          value={eligible.length}
-          icon={Milk}
-          tone="safe"
-        />
+        <StatCard label="Animals Eligible Today" value={eligible.length} icon={Milk} tone="safe" />
 
         <StatCard
           label="Animals Blocked (HOLD)"
@@ -197,9 +178,7 @@ function CentreDashboard() {
 
         <StatCard
           label="Batches Dispatched"
-          value={
-            batches.filter((batch) => batch.processingBatches.length > 0).length
-          }
+          value={batches.filter((batch) => batch.processingBatches.length > 0).length}
           icon={Truck}
           tone="info"
         />
@@ -207,17 +186,11 @@ function CentreDashboard() {
 
       <Tabs defaultValue="intake" className="mt-8">
         <TabsList className="flex-wrap">
-          <TabsTrigger value="intake">
-            Milk Intake Screening
-          </TabsTrigger>
+          <TabsTrigger value="intake">Milk Intake Screening</TabsTrigger>
 
-          <TabsTrigger value="batches">
-            Milk Batches
-          </TabsTrigger>
+          <TabsTrigger value="batches">Milk Batches</TabsTrigger>
 
-          <TabsTrigger value="blocked">
-            Blocked Animals
-          </TabsTrigger>
+          <TabsTrigger value="blocked">Blocked Animals</TabsTrigger>
         </TabsList>
 
         {/* =========================
@@ -227,13 +200,10 @@ function CentreDashboard() {
           <div className="panel p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold">
-                  Today's intake screening
-                </h2>
+                <h2 className="text-lg font-semibold">Today's intake screening</h2>
 
                 <p className="text-sm text-muted-foreground">
-                  Animals under an active withdrawal period cannot
-                  be added to a pooled batch.
+                  Animals under an active withdrawal period cannot be added to a pooled batch.
                 </p>
               </div>
 
@@ -241,7 +211,9 @@ function CentreDashboard() {
                 onClick={createBatch}
                 disabled={selected.length === 0 || savingBatch || loading || Boolean(error)}
               >
-                {savingBatch ? "Creating batch..." : `Create milk batch (${selected.length} animals)`}
+                {savingBatch
+                  ? "Creating batch..."
+                  : `Create milk batch (${selected.length} animals)`}
               </Button>
             </div>
 
@@ -281,9 +253,7 @@ function CentreDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12">
-                        Pool
-                      </TableHead>
+                      <TableHead className="w-12">Pool</TableHead>
 
                       <TableHead>Cow</TableHead>
 
@@ -304,12 +274,7 @@ function CentreDashboard() {
                           <Checkbox
                             checked={selected.includes(cow.id)}
                             disabled={wd.status === "HOLD"}
-                            onCheckedChange={(value) =>
-                              toggle(
-                                cow.id,
-                                Boolean(value),
-                              )
-                            }
+                            onCheckedChange={(value) => toggle(cow.id, Boolean(value))}
                             aria-label={`Pool milk from ${cow.cattleId}`}
                           />
                         </TableCell>
@@ -318,13 +283,9 @@ function CentreDashboard() {
                           {cow.cattleId} · {cow.name ?? "Unnamed"}
                         </TableCell>
 
-                        <TableCell>
-                          {cow.farmer.user.name}
-                        </TableCell>
+                        <TableCell>{cow.farmer.user.name}</TableCell>
 
-                        <TableCell>
-                          {cow.farmer.village}
-                        </TableCell>
+                        <TableCell>{cow.farmer.village}</TableCell>
 
                         <TableCell className="max-w-sm text-sm text-muted-foreground">
                           {wd.reason}
@@ -339,7 +300,6 @@ function CentreDashboard() {
                 </Table>
               </div>
             )}
-
           </div>
         </TabsContent>
 
@@ -362,9 +322,7 @@ function CentreDashboard() {
 
                   <TableHead>Volume</TableHead>
 
-                  <TableHead>
-                    Contributing animals
-                  </TableHead>
+                  <TableHead>Contributing animals</TableHead>
 
                   <TableHead>Status</TableHead>
 
@@ -375,17 +333,11 @@ function CentreDashboard() {
               <TableBody>
                 {batches.map((batch) => (
                   <TableRow key={batch.id}>
-                    <TableCell className="font-medium">
-                      {batch.batchId}
-                    </TableCell>
+                    <TableCell className="font-medium">{batch.batchId}</TableCell>
 
-                    <TableCell>
-                      {formatDate(batch.date)}
-                    </TableCell>
+                    <TableCell>{formatDate(batch.date)}</TableCell>
 
-                    <TableCell>
-                      {Number(batch.volumeL)} L
-                    </TableCell>
+                    <TableCell>{Number(batch.volumeL)} L</TableCell>
 
                     <TableCell className="text-sm text-muted-foreground">
                       {batch.contributingAnimals.map(({ cattle: cow }) => cow.cattleId).join(", ")}
@@ -396,7 +348,8 @@ function CentreDashboard() {
                     </TableCell>
 
                     <TableCell>
-                      {batch.processingBatches[0]?.processingBatch.batchId ?? "At collection centre"}
+                      {batch.processingBatches[0]?.processingBatch.batchId ??
+                        "At collection centre"}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -411,38 +364,28 @@ function CentreDashboard() {
         <TabsContent value="blocked" className="mt-5">
           <div className="grid gap-4 md:grid-cols-2">
             {intake
-              .filter(
-                (record) => record.wd.status === "HOLD",
-              )
+              .filter((record) => record.wd.status === "HOLD")
               .map(({ cow, wd }) => (
-                <div
-                  key={cow.id}
-                  className="panel p-5"
-                >
+                <div key={cow.id} className="panel p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-heading text-lg font-semibold text-heading">
-                        {cow.cattleId} ·{" "}
-                        {cow.name ?? "Unnamed"}
+                        {cow.cattleId} · {cow.name ?? "Unnamed"}
                       </p>
 
                       <p className="text-sm text-muted-foreground">
-                        {cow.farmer.user.name} ·{" "}
-                        {cow.farmer.village}
+                        {cow.farmer.user.name} · {cow.farmer.village}
                       </p>
                     </div>
 
                     <StatusBadge status="HOLD" />
                   </div>
 
-                  <p className="mt-3 text-sm">
-                    {wd.reason}
-                  </p>
+                  <p className="mt-3 text-sm">{wd.reason}</p>
 
                   {wd.clearsOn ? (
                     <p className="mt-2 text-sm font-semibold text-hold">
-                      Accept milk again from{" "}
-                      {formatDate(wd.clearsOn)}
+                      Accept milk again from {formatDate(wd.clearsOn)}
                     </p>
                   ) : null}
                 </div>

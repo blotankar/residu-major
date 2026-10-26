@@ -1,4 +1,3 @@
-
 const API_URL = (import.meta.env["VITE_API_URL"] || "http://localhost:3000").replace(/\/$/, "");
 const SESSION_KEY = "residuguard.session";
 
@@ -55,10 +54,7 @@ function getAuthToken(): string {
   }
 }
 
-async function apiRequest<T>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
+async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
 
   const response = await fetch(`${API_URL}${path}`, {
@@ -95,9 +91,7 @@ export type CreateCattleInput = {
   dateOfBirth?: string | null;
 };
 
-export async function createCattle(
-  input: CreateCattleInput,
-): Promise<ApiCattle> {
+export async function createCattle(input: CreateCattleInput): Promise<ApiCattle> {
   const result = await apiRequest<{ cattle: ApiCattle }>("/api/cattle", {
     method: "POST",
     body: JSON.stringify(input),
@@ -182,6 +176,11 @@ export type FactoryDashboardData = {
     finishedInventoryL: number;
     dispatchesToday: number;
   };
+  alerts: {
+    batchId: string;
+    status: "ON_HOLD" | "REJECTED";
+    message: string;
+  }[];
   recentActivity: {
     id: string;
     eventType: string;
@@ -206,7 +205,11 @@ export type FactoryProductionRun = {
   completedAt: string | null;
   operator: { name: string } | null;
   sourceMilkBatches: {
-    milkBatch: { id: string; batchId: string; factoryReceipt: { receivedQuantityL: string } | null };
+    milkBatch: {
+      id: string;
+      batchId: string;
+      factoryReceipt: { receivedQuantityL: string } | null;
+    };
   }[];
   productLots: { id: string; lotId: string; producedQuantityL: string }[];
 };
@@ -341,10 +344,13 @@ export function completeFactoryProduction(
   id: string,
   input: { outputVolumeL: number; wastageL: number },
 ) {
-  return apiRequest<FactoryProductionCompletion>(`/api/factory/production/${encodeURIComponent(id)}/complete`, {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  return apiRequest<FactoryProductionCompletion>(
+    `/api/factory/production/${encodeURIComponent(id)}/complete`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function fetchFactoryInventory() {

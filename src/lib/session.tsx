@@ -1,10 +1,4 @@
-
-import {
-  createContext,
-  useContext,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import type { RoleId } from "@/lib/roles";
 
 const API_URL = (import.meta.env["VITE_API_URL"] || "http://localhost:3000").replace(/\/$/, "");
@@ -54,17 +48,11 @@ type SessionContextValue = {
     role: RoleId,
     profile: Record<string, string>,
   ) => Promise<void>;
-  signIn: (
-    email: string,
-    password: string,
-    role: RoleId,
-  ) => Promise<AuthUser>;
+  signIn: (email: string, password: string, role: RoleId) => Promise<AuthUser>;
   signOut: () => void;
 };
 
-const SessionContext = createContext<SessionContextValue | undefined>(
-  undefined,
-);
+const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
 function readStoredSession(): StoredSession | null {
   if (typeof window === "undefined") return null;
@@ -107,10 +95,7 @@ function readStoredSession(): StoredSession | null {
   }
 }
 
-async function postAuth(
-  endpoint: string,
-  payload: Record<string, unknown>,
-): Promise<AuthResponse> {
+async function postAuth(endpoint: string, payload: Record<string, unknown>): Promise<AuthResponse> {
   let response: Response;
 
   try {
@@ -120,9 +105,7 @@ async function postAuth(
       body: JSON.stringify(payload),
     });
   } catch {
-    throw new Error(
-      "Cannot connect to the server. Make sure the ResiduGuard backend is running.",
-    );
+    throw new Error("Cannot connect to the server. Make sure the ResiduGuard backend is running.");
   }
 
   const result = (await response.json()) as AuthResponse;
@@ -135,15 +118,9 @@ async function postAuth(
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [initialSession] = useState<StoredSession | null>(() =>
-    readStoredSession(),
-  );
-  const [user, setUser] = useState<AuthUser | null>(
-    () => initialSession?.user ?? null,
-  );
-  const [token, setToken] = useState<string | null>(
-    () => initialSession?.token ?? null,
-  );
+  const [initialSession] = useState<StoredSession | null>(() => readStoredSession());
+  const [user, setUser] = useState<AuthUser | null>(() => initialSession?.user ?? null);
+  const [token, setToken] = useState<string | null>(() => initialSession?.token ?? null);
   const role = user?.role ?? null;
 
   async function register(
@@ -163,11 +140,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
   }
 
-  async function signIn(
-    email: string,
-    password: string,
-    role: RoleId,
-  ): Promise<AuthUser> {
+  async function signIn(email: string, password: string, role: RoleId): Promise<AuthUser> {
     const result = await postAuth("login", {
       email,
       password,

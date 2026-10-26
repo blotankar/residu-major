@@ -7,8 +7,34 @@ const json = (data: unknown, status = 200) =>
   Response.json(data, { status });
 
 const nonEmptyString = z.string().trim().min(1);
-const positiveNumber = z.number().finite().positive();
-const nonNegativeNumber = z.number().finite().nonnegative();
+const toMilliLitres = (value: number) => Math.round(value * 1000);
+const hasAtMostThreeDecimalPlaces = (value: number) => {
+  const [coefficient = "", exponent = "0"] = value
+    .toString()
+    .toLowerCase()
+    .split("e");
+  const decimalPlaces = coefficient.split(".")[1]?.length ?? 0;
+  return decimalPlaces - Number(exponent) <= 3;
+};
+const quantity = z
+  .number()
+  .finite()
+  .max(999_999_999.999)
+  .refine(
+    hasAtMostThreeDecimalPlaces,
+    "Use no more than three decimal places.",
+  );
+const positiveNumber = quantity.positive();
+const nonNegativeNumber = quantity.nonnegative();
+const qualityMeasurement = z
+  .number()
+  .finite()
+  .min(-9999.999)
+  .max(9999.999)
+  .refine(
+    hasAtMostThreeDecimalPlaces,
+    "Use no more than three decimal places.",
+  );
 
 const receiptSchema = z.object({
   receivedQuantityL: positiveNumber,
@@ -17,10 +43,10 @@ const receiptSchema = z.object({
 });
 
 const inspectionSchema = z.object({
-  temperatureC: z.number().finite(),
-  fatPercent: nonNegativeNumber,
-  snfPercent: nonNegativeNumber,
-  acidityPercent: nonNegativeNumber,
+  temperatureC: qualityMeasurement,
+  fatPercent: qualityMeasurement.nonnegative(),
+  snfPercent: qualityMeasurement.nonnegative(),
+  acidityPercent: qualityMeasurement.nonnegative(),
   adulterationResult: z.enum(["PASS", "FAIL", "INCONCLUSIVE"]),
   status: z.enum(["ACCEPTED", "ON_HOLD", "REJECTED"]),
   remarks: z.string().trim().max(2000).optional(),
@@ -52,6 +78,8 @@ const dispatchSchema = z.object({
     .min(1)
     .max(100),
 });
+
+class FactoryConflictError extends Error {}
 
 type FactoryProfile = NonNullable<
   Awaited<ReturnType<typeof getFactoryProfile>>
@@ -114,11 +142,13 @@ function dateFilter(url: URL) {
   if (from) {
     const parsed = new Date(from);
     if (Number.isNaN(parsed.getTime())) throw new Error("Invalid from date.");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(from)) parsed.setUTCHours(0, 0, 0, 0);
     date.gte = parsed;
   }
   if (to) {
     const parsed = new Date(to);
     if (Number.isNaN(parsed.getTime())) throw new Error("Invalid to date.");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(to)) parsed.setUTCHours(23, 59, 59, 999);
     date.lte = parsed;
   }
   return Object.keys(date).length ? date : undefined;
@@ -187,9 +217,10 @@ async function dashboard(factory: FactoryProfile) {
   return {
     metrics: {
       batchesReceivedToday: receivedToday.length,
-      pendingInspections: receipts.filter(
-        (receipt) => !latestByBatch.has(receipt.milkBatchId),
-      ).length,
+      pendingInspections: receipts.filter((receipt) => {
+        const latest = latestByBatch.get(receipt.milkBatchId);
+        return !latest || latest.status === "ON_HOLD";
+      }).length,
       acceptedBatches: inspectionStatuses.ACCEPTED,
       heldBatches: inspectionStatuses.ON_HOLD,
       rejectedBatches: inspectionStatuses.REJECTED,
@@ -207,6 +238,22 @@ async function dashboard(factory: FactoryProfile) {
       finishedInventoryL: Number(lots._sum.currentQuantityL ?? 0),
       dispatchesToday: dispatches,
     },
+    alerts: receipts
+      .flatMap((receipt) => {
+        const latest = latestByBatch.get(receipt.milkBatchId);
+        if (!latest || latest.status === "ACCEPTED") return [];
+        return [
+          {
+            batchId: receipt.milkBatch.batchId,
+            status: latest.status,
+            message:
+              latest.status === "REJECTED"
+                ? "Rejected milk batch must not enter production."
+                : "Milk batch is on hold pending further review.",
+          },
+        ];
+      })
+      .slice(0, 10),
     recentActivity: activity,
   };
 }
@@ -354,6 +401,13 @@ async function inspectBatch(
   if (receipt.milkBatch.processingBatches.length) {
     return json({ error: "A batch already used in production cannot be re-inspected." }, 409);
   }
+  const latest = await prisma.milkQualityInspection.findFirst({
+    where: { milkBatchId: batchId },
+    orderBy: { inspectedAt: "desc" },
+  });
+  if (latest && latest.status !== "ON_HOLD") {
+    return json({ error: "Only batches on hold may be inspected again." }, 409);
+  }
 
   const inspection = await prisma.$transaction(async (tx) => {
     const created = await tx.milkQualityInspection.create({
@@ -441,10 +495,12 @@ async function createProduction(
     );
   }
 
-  const inputVolumeL = batches.reduce(
-    (sum, batch) => sum + Number(batch.factoryReceipt?.receivedQuantityL ?? 0),
-    0,
-  );
+  const inputVolumeL =
+    batches.reduce(
+      (sum, batch) =>
+        sum + toMilliLitres(Number(batch.factoryReceipt?.receivedQuantityL ?? 0)),
+      0,
+    ) / 1000;
   const date = new Date(body.data.date);
   const batchId = `PB-${date.toISOString().slice(0, 10).replace(/-/g, "")}-${crypto
     .randomUUID()
@@ -470,10 +526,18 @@ async function createProduction(
         },
         include: { sourceMilkBatches: true },
       });
-      await tx.milkBatch.updateMany({
-        where: { id: { in: batches.map((batch) => batch.id) } },
+      const allocated = await tx.milkBatch.updateMany({
+        where: {
+          id: { in: batches.map((batch) => batch.id) },
+          status: "SAFE",
+        },
         data: { status: "PROCESSING" },
       });
+      if (allocated.count !== batches.length) {
+        throw new FactoryConflictError(
+          "One or more milk batches were concurrently allocated. Refresh and retry.",
+        );
+      }
       await recordActivity(tx, factory, "PRODUCTION_RUN_CREATED", "processing_batch", created.id, {
         batchId,
         milkBatchIds: batches.map((batch) => batch.batchId),
@@ -483,10 +547,16 @@ async function createProduction(
     }, { isolationLevel: "Serializable" });
     return json({ productionRun: run }, 201);
   } catch (error) {
-    if (isUniqueViolation(error)) {
+      if (isUniqueViolation(error)) {
       return json({ error: "Could not create a unique production batch ID. Please retry." }, 409);
     }
-    throw error;
+      if (error instanceof FactoryConflictError || isSerializationConflict(error)) {
+        return json(
+          { error: "Milk batches changed while production was being created. Refresh and retry." },
+          409,
+        );
+      }
+      throw error;
   }
 }
 
@@ -508,8 +578,9 @@ async function completeProduction(
     return json({ error: "Only active production runs can be completed." }, 409);
   }
   const input = Number(run.inputVolumeL ?? run.volumeL);
-  const totalOutputAndWastage = body.data.outputVolumeL + body.data.wastageL;
-  if (totalOutputAndWastage > input) {
+  const totalOutputAndWastageMilliLitres =
+    toMilliLitres(body.data.outputVolumeL) + toMilliLitres(body.data.wastageL);
+  if (totalOutputAndWastageMilliLitres > toMilliLitres(input)) {
     return json(
       { error: "Output and wastage cannot exceed the recorded input quantity." },
       400,
@@ -520,9 +591,10 @@ async function completeProduction(
     .randomUUID()
     .slice(0, 8)
     .toUpperCase()}`;
-  const lot = await prisma.$transaction(async (tx) => {
-    const updated = await tx.processingBatch.update({
-      where: { id: run.id },
+  try {
+    const lot = await prisma.$transaction(async (tx) => {
+      const updatedCount = await tx.processingBatch.updateMany({
+      where: { id: run.id, factoryId: factory.id, status: "PROCESSING" },
       data: {
         status: "COMPLETED",
         outputVolumeL: body.data.outputVolumeL,
@@ -530,6 +602,14 @@ async function completeProduction(
         packs: 0,
         completedAt: new Date(),
       },
+    });
+    if (updatedCount.count !== 1) {
+      throw new FactoryConflictError(
+        "This production run was already completed. Refresh the production list.",
+      );
+    }
+    const updated = await tx.processingBatch.findUniqueOrThrow({
+      where: { id: run.id },
     });
     const createdLot = await tx.productLot.create({
       data: {
@@ -556,8 +636,17 @@ async function completeProduction(
       wastageL: body.data.wastageL,
     });
     return { productionRun: updated, productLot: createdLot };
-  });
-  return json(lot, 201);
+    });
+    return json(lot, 201);
+  } catch (error) {
+    if (error instanceof FactoryConflictError || isSerializationConflict(error)) {
+    return json(
+      { error: "This production run changed during completion. Refresh and retry." },
+      409,
+    );
+    }
+    throw error;
+  }
 }
 
 async function getInventory(factory: FactoryProfile) {
@@ -632,7 +721,9 @@ async function createDispatch(
           data: { currentQuantityL: { decrement: item.quantityL } },
         });
         if (updated.count !== 1) {
-          throw new Error(`Inventory changed for lot ${item.lotId}. Refresh and retry.`);
+          throw new FactoryConflictError(
+            `Inventory changed for lot ${item.lotId}. Refresh and retry.`,
+          );
         }
         await tx.dispatchItem.create({
           data: {
@@ -651,8 +742,9 @@ async function createDispatch(
             reference: dispatchId,
           },
         });
-        const remaining = Number(lot.currentQuantityL) - item.quantityL;
-        if (remaining === 0) {
+        const remainingMilliLitres =
+          toMilliLitres(Number(lot.currentQuantityL)) - toMilliLitres(item.quantityL);
+        if (remainingMilliLitres === 0) {
           await tx.productLot.update({
             where: { id: lot.id },
             data: { status: "DEPLETED" },
@@ -673,6 +765,12 @@ async function createDispatch(
   } catch (error) {
     if (isUniqueViolation(error)) {
       return json({ error: "Could not create a unique dispatch ID. Please retry." }, 409);
+    }
+    if (error instanceof FactoryConflictError || isSerializationConflict(error)) {
+      return json(
+        { error: "Inventory changed while this dispatch was being created. Refresh and retry." },
+        409,
+      );
     }
     throw error;
   }
@@ -834,6 +932,15 @@ function isUniqueViolation(error: unknown): boolean {
     error !== null &&
     "code" in error &&
     error.code === "P2002"
+  );
+}
+
+function isSerializationConflict(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2034"
   );
 }
 

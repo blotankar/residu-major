@@ -70,6 +70,7 @@ Replace the placeholders with the actual values supplied by the project maintain
 - `JWT_SECRET`: a private secret used to sign authentication tokens, if JWT signing is enabled in the current code.
 
 **Security notes**
+
 - Never commit `backend/.env` to Git.
 - Never paste database passwords or JWT secrets into issues, chat, or public documentation.
 - Share database credentials only with teammates who are authorized to access the shared database.
@@ -127,12 +128,12 @@ The frontend's login and registration requests must target the backend at `http:
 
 ### Supported public registration roles
 
-| Role | Required role-specific field |
-|---|---|
-| Farmer | Village |
-| Veterinarian | License number |
-| Collection Centre | Centre code |
-| Factory | Factory code |
+| Role              | Required role-specific field |
+| ----------------- | ---------------------------- |
+| Farmer            | Village                      |
+| Veterinarian      | License number               |
+| Collection Centre | Centre code                  |
+| Factory           | Factory code                 |
 
 Authority accounts are provisioned by an administrator. Consumer accounts use guest batch verification and do not register through the public registration endpoint, according to the current backend logic.
 
@@ -170,28 +171,49 @@ Before running `git add .`, review `git status` and make sure `.env`, credential
 ## Troubleshooting
 
 ### Browser shows a folder listing at `127.0.0.1:5500`
+
 - This project is a TanStack Start app, not a static site. Do not open the repository with VS Code Live Server.
 - In a terminal at the repository root, run `bun install` if you have not installed dependencies, then run `bun run dev`.
 - Open the URL printed by the development server (usually `http://localhost:5173`) instead of the Live Server URL.
 
 ### `DATABASE_URL is not defined`
+
 - Confirm `backend/.env` exists.
 - Check that the variable is named exactly `DATABASE_URL`.
 - Restart the backend after changing `.env`.
 
 ### Prisma cannot connect to Supabase
+
 - Verify the database URLs and network access.
 - Do not post the connection strings publicly.
 - Ask the project maintainer to verify database permissions and connection settings.
 
 ### Frontend registration/login does not work
+
 - Confirm the backend is running on port `3000`.
 - Confirm the frontend API URL points to the backend.
 - Check the browser developer console and backend terminal for errors.
 - The maintainer may need to verify CORS or development proxy configuration.
 
 ### Port `3000` is already in use
+
 - Stop the other process using the port, or coordinate a different backend port and update the frontend API URL accordingly.
+
+## Factory dashboard
+
+The factory workspace is part of the existing ResiduGuard application at `/factory` and uses the existing login, session, role gate, Bun API server, PostgreSQL database, and Prisma client. Factory operations include milk receipt, recorded quality inspection, production, finished-lot inventory, dispatch, traceability, and date-filtered reports. The application records inspection measurements and inspector decisions; it does not invent test thresholds or claim laboratory or regulatory certification.
+
+The factory schema change is an additive migration in `backend/prisma/migrations/20261027000000_factory_operations`. Generate the client and validate the schema from `backend`:
+
+```powershell
+bunx prisma validate
+bunx prisma generate
+bunx prisma migrate status
+```
+
+Do not run `prisma migrate reset`. **Before applying any pending migrations to a shared or existing database, inspect the status and have the maintainer verify the migration history.** The earlier `20261010180437_cattle_id_unique_per_farmer` migration drops and recreates the cattle table; if it is pending, do not apply the migration chain until its data-preserving remediation has been planned. The factory migration itself adds tables and nullable processing-batch fields, but it cannot make that earlier migration safe.
+
+The factory dashboard requires a factory user and matching `Factory` profile. Factory receipt and production data come from milk batches created by a collection-centre account through the collection-centre workspace.
 
 ## Important reminders
 

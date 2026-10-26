@@ -13,7 +13,11 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("Seeding ResiduGuard database...");
 
-  async function seedUser(name: string, email: string, role: "VETERINARIAN" | "COLLECTION_CENTRE" | "FACTORY") {
+  async function seedUser(
+    name: string,
+    email: string,
+    role: "VETERINARIAN" | "COLLECTION_CENTRE" | "FACTORY",
+  ) {
     return prisma.user.upsert({
       where: { email },
       update: {},
@@ -98,11 +102,7 @@ async function main() {
   // VETERINARIAN
   // -------------------------
 
-  const vetUser = await seedUser(
-    "Dr. Anjali Sharma",
-    "anjali@residuguard.demo",
-    "VETERINARIAN",
-  );
+  const vetUser = await seedUser("Dr. Anjali Sharma", "anjali@residuguard.demo", "VETERINARIAN");
   await prisma.veterinarian.upsert({
     where: {
       licenseNo: "VET-PUNE-001",

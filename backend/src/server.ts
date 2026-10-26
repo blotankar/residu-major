@@ -1,12 +1,8 @@
-
 import { getCattle, createCattle } from "./routes/cattle";
 import { login, register } from "./routes/auth";
 import { handleFactoryRequest } from "./routes/factory";
 import { handleMilkBatchRequest } from "./routes/milk-batches";
-import {
-  authenticateRequest,
-  requireRoles,
-} from "./lib/auth-middleware";
+import { authenticateRequest, requireRoles } from "./lib/auth-middleware";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,10 +42,7 @@ const server = Bun.serve({
     }
 
     // All cattle endpoints below require a valid JWT.
-    if (
-      (req.method === "GET" || req.method === "POST") &&
-      path === "/api/cattle"
-    ) {
+    if ((req.method === "GET" || req.method === "POST") && path === "/api/cattle") {
       const user = authenticateRequest(req);
 
       if (user instanceof Response) {
@@ -95,10 +88,7 @@ const server = Bun.serve({
       }
     }
 
-    if (
-      path === "/api/milk-batches" &&
-      (req.method === "GET" || req.method === "POST")
-    ) {
+    if (path === "/api/milk-batches" && (req.method === "GET" || req.method === "POST")) {
       const user = authenticateRequest(req);
       if (user instanceof Response) return user;
 
@@ -126,13 +116,8 @@ const server = Bun.serve({
       return response;
     }
 
-    return Response.json(
-      { error: "Route not found." },
-      { status: 404, headers: corsHeaders },
-    );
+    return Response.json({ error: "Route not found." }, { status: 404, headers: corsHeaders });
   },
 });
 
-console.log(
-  `🚀 ResiduGuard backend running at http://localhost:${server.port}`,
-);
+console.log(`🚀 ResiduGuard backend running at http://localhost:${server.port}`);

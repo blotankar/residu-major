@@ -109,9 +109,23 @@ function VetDashboard() {
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Animals Under My Care" value={cattle.length} icon={Stethoscope} />
-        <StatCard label="Treatments Recorded" value={mine.length} icon={ClipboardList} tone="info" />
-        <StatCard label="Animals Under Withdrawal" value={underWithdrawal.length} icon={CalendarClock} tone="hold" />
-        <StatCard label="Antibiotics In Reference Table" value={mrlReference.length} icon={Syringe} />
+        <StatCard
+          label="Treatments Recorded"
+          value={mine.length}
+          icon={ClipboardList}
+          tone="info"
+        />
+        <StatCard
+          label="Animals Under Withdrawal"
+          value={underWithdrawal.length}
+          icon={CalendarClock}
+          tone="hold"
+        />
+        <StatCard
+          label="Antibiotics In Reference Table"
+          value={mrlReference.length}
+          icon={Syringe}
+        />
       </div>
 
       <Tabs defaultValue="record" className="mt-8">
@@ -147,7 +161,10 @@ function VetDashboard() {
                   onValueChange={(v) => {
                     setDrug(v);
                     const ref = mrlReference.find((m) => m.drug === v);
-                    if (ref) setWithdrawalDays(ref.typicalWithdrawal.split("–")[1]?.replace(/\D/g, "") || "5");
+                    if (ref)
+                      setWithdrawalDays(
+                        ref.typicalWithdrawal.split("–")[1]?.replace(/\D/g, "") || "5",
+                      );
                   }}
                 >
                   <SelectTrigger>

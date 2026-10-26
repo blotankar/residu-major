@@ -1,15 +1,15 @@
-
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import {
-  createCattle,
-  fetchCattle,
-  type ApiCattle,
-} from "@/lib/api";
+import { createCattle, fetchCattle, type ApiCattle } from "@/lib/api";
 import { useSession } from "@/lib/session";
+import { RoleGate } from "@/components/residuguard/RoleGate";
 
 export const Route = createFileRoute("/farmer")({
-  component: Farmer,
+  component: () => (
+    <RoleGate role="farmer">
+      <Farmer />
+    </RoleGate>
+  ),
 });
 
 type CattleForm = {
@@ -39,9 +39,7 @@ function Farmer() {
   const [form, setForm] = useState<CattleForm>({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(
-    null,
-  );
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   async function loadCattle() {
     setLoading(true);
@@ -51,11 +49,7 @@ function Farmer() {
       const records = await fetchCattle();
       setCattle(records);
     } catch (error) {
-      setLoadError(
-        error instanceof Error
-          ? error.message
-          : "Unable to load cattle records.",
-      );
+      setLoadError(error instanceof Error ? error.message : "Unable to load cattle records.");
     } finally {
       setLoading(false);
     }
@@ -76,11 +70,7 @@ function Farmer() {
         }
       } catch (error) {
         if (!cancelled) {
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : "Unable to load cattle records.",
-          );
+          setLoadError(error instanceof Error ? error.message : "Unable to load cattle records.");
         }
       } finally {
         if (!cancelled) {
@@ -96,10 +86,7 @@ function Farmer() {
     };
   }, []);
 
-  function updateField<K extends keyof CattleForm>(
-    field: K,
-    value: CattleForm[K],
-  ) {
+  function updateField<K extends keyof CattleForm>(field: K, value: CattleForm[K]) {
     setForm((current) => ({
       ...current,
       [field]: value,
@@ -124,10 +111,7 @@ function Farmer() {
       const today = new Date();
       today.setHours(23, 59, 59, 999);
 
-      if (
-        Number.isNaN(selectedDate.getTime()) ||
-        selectedDate > today
-      ) {
+      if (Number.isNaN(selectedDate.getTime()) || selectedDate > today) {
         setFormError("Date of birth cannot be in the future.");
         return;
       }
@@ -150,15 +134,9 @@ function Farmer() {
 
       setForm({ ...EMPTY_FORM });
       setShowAddForm(false);
-      setSuccessMessage(
-        `Cattle ${cattleId} was registered successfully.`,
-      );
+      setSuccessMessage(`Cattle ${cattleId} was registered successfully.`);
     } catch (error) {
-      setFormError(
-        error instanceof Error
-          ? error.message
-          : "Unable to register cattle.",
-      );
+      setFormError(error instanceof Error ? error.message : "Unable to register cattle.");
     } finally {
       setSaving(false);
     }
@@ -169,12 +147,8 @@ function Farmer() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5">
           <div>
-            <h1 className="text-2xl font-bold text-emerald-800">
-              ResiduGuard
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Farmer Dashboard
-            </p>
+            <h1 className="text-2xl font-bold text-emerald-800">ResiduGuard</h1>
+            <p className="mt-1 text-sm text-slate-500">Farmer Dashboard</p>
           </div>
 
           <div className="flex items-center gap-4">
@@ -196,9 +170,7 @@ function Farmer() {
       <div className="mx-auto max-w-7xl space-y-6 px-6 py-8">
         <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-2xl font-semibold">
-              Your livestock
-            </h2>
+            <h2 className="text-2xl font-semibold">Your livestock</h2>
             <p className="mt-2 text-sm text-slate-600">
               Manage your registered cattle and their records.
             </p>
@@ -228,28 +200,21 @@ function Farmer() {
 
         {showAddForm && (
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold">
-              Register New Cattle
-            </h3>
+            <h3 className="text-lg font-semibold">Register New Cattle</h3>
 
             <p className="mt-1 text-sm text-slate-500">
-              Enter the animal details below. The cattle ID must be
-              unique.
+              Enter the animal details below. The cattle ID must be unique.
             </p>
 
             <form onSubmit={handleAddCattle} className="mt-6 space-y-5">
               <div className="grid gap-5 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium">
-                    Cattle ID *
-                  </span>
+                  <span className="mb-1 block text-sm font-medium">Cattle ID *</span>
                   <input
                     required
                     maxLength={100}
                     value={form.cattleId}
-                    onChange={(event) =>
-                      updateField("cattleId", event.target.value)
-                    }
+                    onChange={(event) => updateField("cattleId", event.target.value)}
                     placeholder="e.g. CATTLE-003"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
                   />
@@ -259,44 +224,32 @@ function Farmer() {
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium">
-                    Animal name
-                  </span>
+                  <span className="mb-1 block text-sm font-medium">Animal name</span>
                   <input
                     maxLength={100}
                     value={form.name}
-                    onChange={(event) =>
-                      updateField("name", event.target.value)
-                    }
+                    onChange={(event) => updateField("name", event.target.value)}
                     placeholder="e.g. Ganga"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium">
-                    Breed
-                  </span>
+                  <span className="mb-1 block text-sm font-medium">Breed</span>
                   <input
                     maxLength={100}
                     value={form.breed}
-                    onChange={(event) =>
-                      updateField("breed", event.target.value)
-                    }
+                    onChange={(event) => updateField("breed", event.target.value)}
                     placeholder="e.g. Gir"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium">
-                    Sex
-                  </span>
+                  <span className="mb-1 block text-sm font-medium">Sex</span>
                   <select
                     value={form.sex}
-                    onChange={(event) =>
-                      updateField("sex", event.target.value)
-                    }
+                    onChange={(event) => updateField("sex", event.target.value)}
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
                   >
                     <option value="">Select sex</option>
@@ -307,16 +260,12 @@ function Farmer() {
                 </label>
 
                 <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-sm font-medium">
-                    Date of birth
-                  </span>
+                  <span className="mb-1 block text-sm font-medium">Date of birth</span>
                   <input
                     type="date"
                     max={new Date().toISOString().slice(0, 10)}
                     value={form.dateOfBirth}
-                    onChange={(event) =>
-                      updateField("dateOfBirth", event.target.value)
-                    }
+                    onChange={(event) => updateField("dateOfBirth", event.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 sm:max-w-md"
                   />
                 </label>
@@ -360,19 +309,13 @@ function Farmer() {
         <section className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm text-slate-500">Registered cattle</p>
-            <p className="mt-2 text-3xl font-bold">
-              {loading || loadError ? "—" : cattle.length}
-            </p>
+            <p className="mt-2 text-3xl font-bold">{loading || loadError ? "—" : cattle.length}</p>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm text-slate-500">Cattle API status</p>
             <p className="mt-2 text-lg font-semibold">
-              {loading
-                ? "Loading..."
-                : loadError
-                  ? "Unavailable"
-                  : "Responding"}
+              {loading ? "Loading..." : loadError ? "Unavailable" : "Responding"}
             </p>
             <p className="mt-1 text-xs text-slate-500">
               Indicates whether the cattle API returned successfully.
@@ -396,17 +339,11 @@ function Farmer() {
 
           <div className="p-6">
             {loading ? (
-              <p className="py-8 text-center text-sm text-slate-500">
-                Loading cattle records...
-              </p>
+              <p className="py-8 text-center text-sm text-slate-500">Loading cattle records...</p>
             ) : loadError ? (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                <h4 className="font-medium text-red-800">
-                  Unable to load cattle records
-                </h4>
-                <p className="mt-2 text-sm text-red-700">
-                  {loadError}
-                </p>
+                <h4 className="font-medium text-red-800">Unable to load cattle records</h4>
+                <p className="mt-2 text-sm text-red-700">{loadError}</p>
                 <button
                   type="button"
                   onClick={() => void loadCattle()}
@@ -419,8 +356,8 @@ function Farmer() {
               <div className="py-10 text-center">
                 <h4 className="font-semibold">No cattle records yet</h4>
                 <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500">
-                  No cattle records are associated with your account.
-                  Select Add New Cattle to register your first animal.
+                  No cattle records are associated with your account. Select Add New Cattle to
+                  register your first animal.
                 </p>
                 <button
                   type="button"
@@ -446,28 +383,15 @@ function Farmer() {
 
                   <tbody>
                     {cattle.map((animal) => (
-                      <tr
-                        key={animal.id}
-                        className="border-b border-slate-100 last:border-0"
-                      >
+                      <tr key={animal.id} className="border-b border-slate-100 last:border-0">
                         <td className="whitespace-nowrap px-3 py-4 font-medium">
                           {animal.cattleId}
                         </td>
-                        <td className="px-3 py-4">
-                          {animal.name || "—"}
-                        </td>
-                        <td className="px-3 py-4">
-                          {animal.breed || "—"}
-                        </td>
-                        <td className="px-3 py-4">
-                          {animal.sex || "—"}
-                        </td>
-                        <td className="px-3 py-4">
-                          {animal.farmer?.village || "—"}
-                        </td>
-                        <td className="px-3 py-4">
-                          {animal.treatments?.length ?? 0}
-                        </td>
+                        <td className="px-3 py-4">{animal.name || "—"}</td>
+                        <td className="px-3 py-4">{animal.breed || "—"}</td>
+                        <td className="px-3 py-4">{animal.sex || "—"}</td>
+                        <td className="px-3 py-4">{animal.farmer?.village || "—"}</td>
+                        <td className="px-3 py-4">{animal.treatments?.length ?? 0}</td>
                       </tr>
                     ))}
                   </tbody>

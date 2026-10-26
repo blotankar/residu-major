@@ -21,10 +21,7 @@ export async function handleMilkBatchRequest(
       where: { userId: user.userId },
     });
     if (!centre) {
-      return json(
-        { error: "No collection-centre profile is linked to this account." },
-        403,
-      );
+      return json({ error: "No collection-centre profile is linked to this account." }, 403);
     }
 
     if (req.method === "GET") {
@@ -140,12 +137,7 @@ export async function handleMilkBatchRequest(
     if (error instanceof SyntaxError) {
       return json({ error: "Request body must be valid JSON." }, 400);
     }
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "P2002"
-    ) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
       return json({ error: "Could not create a unique milk batch ID. Please retry." }, 409);
     }
     console.error("Milk batch request failed:", error);

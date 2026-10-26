@@ -1,4 +1,3 @@
-
 import { prisma } from "../lib/prisma";
 import type { AuthenticatedUser } from "../lib/auth-middleware";
 
@@ -16,10 +15,7 @@ function json(data: unknown, status = 200): Response {
 }
 
 export async function getCattle(user: AuthenticatedUser) {
-  const where =
-    user.role === "farmer"
-      ? { farmer: { userId: user.userId } }
-      : {};
+  const where = user.role === "farmer" ? { farmer: { userId: user.userId } } : {};
 
   return prisma.cattle.findMany({
     where,
@@ -35,40 +31,22 @@ export async function getCattle(user: AuthenticatedUser) {
   });
 }
 
-export async function createCattle(
-  req: Request,
-  user: AuthenticatedUser,
-): Promise<Response> {
+export async function createCattle(req: Request, user: AuthenticatedUser): Promise<Response> {
   try {
     // Only authenticated farmers may register cattle.
     if (user.role !== "farmer") {
-      return json(
-        { error: "Only farmers can register cattle." },
-        403,
-      );
+      return json({ error: "Only farmers can register cattle." }, 403);
     }
 
     const body = await req.json();
 
-    const cattleId =
-      typeof body.cattleId === "string"
-        ? body.cattleId.trim()
-        : "";
+    const cattleId = typeof body.cattleId === "string" ? body.cattleId.trim() : "";
 
-    const name =
-      typeof body.name === "string"
-        ? body.name.trim() || null
-        : null;
+    const name = typeof body.name === "string" ? body.name.trim() || null : null;
 
-    const breed =
-      typeof body.breed === "string"
-        ? body.breed.trim() || null
-        : null;
+    const breed = typeof body.breed === "string" ? body.breed.trim() || null : null;
 
-    const sex =
-      typeof body.sex === "string"
-        ? body.sex.trim() || null
-        : null;
+    const sex = typeof body.sex === "string" ? body.sex.trim() || null : null;
 
     if (!cattleId) {
       return json({ error: "Cattle ID is required." }, 400);
@@ -88,10 +66,7 @@ export async function createCattle(
       }
 
       if (dateOfBirth > new Date()) {
-        return json(
-          { error: "Date of birth cannot be in the future." },
-          400,
-        );
+        return json({ error: "Date of birth cannot be in the future." }, 400);
       }
     }
 
@@ -101,10 +76,7 @@ export async function createCattle(
     });
 
     if (!farmer) {
-      return json(
-        { error: "No farmer profile is linked to this account." },
-        403,
-      );
+      return json({ error: "No farmer profile is linked to this account." }, 403);
     }
 
     // Check whether THIS farmer has already used this cattle ID.
@@ -156,12 +128,7 @@ export async function createCattle(
       201,
     );
   } catch (error: unknown) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "P2002"
-    ) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
       return json(
         {
           error: "You have already registered cattle with this ID.",
@@ -171,17 +138,11 @@ export async function createCattle(
     }
 
     if (error instanceof SyntaxError) {
-      return json(
-        { error: "Invalid JSON request body." },
-        400,
-      );
+      return json({ error: "Invalid JSON request body." }, 400);
     }
 
     console.error("Failed to create cattle:", error);
 
-    return json(
-      { error: "Failed to register cattle." },
-      500,
-    );
+    return json({ error: "Failed to register cattle." }, 500);
   }
 }

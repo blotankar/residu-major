@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSession } from "@/lib/session";
@@ -60,12 +59,10 @@ function RegisterPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
         <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 text-center shadow-sm">
-          <h1 className="text-2xl font-bold text-slate-900">
-            Select a role first
-          </h1>
+          <h1 className="text-2xl font-bold text-slate-900">Select a role first</h1>
           <p className="mt-3 text-sm text-slate-600">
-            Please return to the Login page and select Farmer, Veterinarian,
-            Collection Centre, or Factory before registering.
+            Please return to the Login page and select Farmer, Veterinarian, Collection Centre, or
+            Factory before registering.
           </p>
           <button
             type="button"
@@ -151,13 +148,7 @@ function RegisterPage() {
     setLoading(true);
 
     try {
-      await register(
-        fullName.trim(),
-        email.trim(),
-        password,
-        selectedRole,
-        profile,
-      );
+      await register(fullName.trim(), email.trim(), password, selectedRole, profile);
 
       setSuccess("Registration successful! Redirecting to Login...");
 
@@ -165,11 +156,7 @@ function RegisterPage() {
         navigate({ to: "/login" });
       }, 1200);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Registration failed. Please try again.",
-      );
+      setError(err instanceof Error ? err.message : "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -184,23 +171,15 @@ function RegisterPage() {
           <p className="text-sm font-semibold uppercase tracking-widest text-emerald-700">
             ResiduGuard
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">
-            Create your account
-          </h1>
+          <h1 className="mt-2 text-3xl font-bold text-slate-900">Create your account</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Registering as{" "}
-            <span className="font-semibold text-emerald-800">
-              {roleLabel}
-            </span>
+            Registering as <span className="font-semibold text-emerald-800">{roleLabel}</span>
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label
-              htmlFor="fullName"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
+            <label htmlFor="fullName" className="mb-1 block text-sm font-medium text-slate-700">
               Full name *
             </label>
             <input
@@ -217,10 +196,7 @@ function RegisterPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="email"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
+            <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
               Email address *
             </label>
             <input
@@ -240,10 +216,7 @@ function RegisterPage() {
           {selectedRole === ("farmer" as RoleId) && (
             <>
               <div>
-                <label
-                  htmlFor="village"
-                  className="mb-1 block text-sm font-medium text-slate-700"
-                >
+                <label htmlFor="village" className="mb-1 block text-sm font-medium text-slate-700">
                   Village *
                 </label>
                 <input
@@ -258,10 +231,7 @@ function RegisterPage() {
               </div>
 
               <div>
-                <label
-                  htmlFor="phone"
-                  className="mb-1 block text-sm font-medium text-slate-700"
-                >
+                <label htmlFor="phone" className="mb-1 block text-sm font-medium text-slate-700">
                   Phone number
                 </label>
                 <input
@@ -300,10 +270,7 @@ function RegisterPage() {
               </div>
 
               <div>
-                <label
-                  htmlFor="phone"
-                  className="mb-1 block text-sm font-medium text-slate-700"
-                >
+                <label htmlFor="phone" className="mb-1 block text-sm font-medium text-slate-700">
                   Phone number
                 </label>
                 <input
@@ -342,10 +309,7 @@ function RegisterPage() {
               </div>
 
               <div>
-                <label
-                  htmlFor="village"
-                  className="mb-1 block text-sm font-medium text-slate-700"
-                >
+                <label htmlFor="village" className="mb-1 block text-sm font-medium text-slate-700">
                   Village
                 </label>
                 <input
@@ -359,10 +323,7 @@ function RegisterPage() {
               </div>
 
               <div>
-                <label
-                  htmlFor="address"
-                  className="mb-1 block text-sm font-medium text-slate-700"
-                >
+                <label htmlFor="address" className="mb-1 block text-sm font-medium text-slate-700">
                   Address
                 </label>
                 <input
@@ -399,10 +360,7 @@ function RegisterPage() {
               </div>
 
               <div>
-                <label
-                  htmlFor="address"
-                  className="mb-1 block text-sm font-medium text-slate-700"
-                >
+                <label htmlFor="address" className="mb-1 block text-sm font-medium text-slate-700">
                   Address
                 </label>
                 <input
@@ -418,10 +376,7 @@ function RegisterPage() {
           )}
 
           <div>
-            <label
-              htmlFor="password"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
+            <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
               Password *
             </label>
             <input

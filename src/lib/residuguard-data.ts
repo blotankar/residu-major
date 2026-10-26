@@ -2,12 +2,7 @@
 // All statuses are derived from RECORDED treatment + withdrawal information only.
 
 export type RoleId =
-  | "farmer"
-  | "veterinarian"
-  | "collection_centre"
-  | "factory"
-  | "authority"
-  | "consumer";
+  "farmer" | "veterinarian" | "collection_centre" | "factory" | "authority" | "consumer";
 
 export type Status = "SAFE" | "HOLD";
 
@@ -80,98 +75,298 @@ export interface LedgerEvent {
 
 /** Reference-only regulatory MRL table. No measurement is performed by this system. */
 export const mrlReference = [
-  { drug: "Oxytetracycline", drugClass: "Tetracycline", mrlMilk: "100 µg/kg", typicalWithdrawal: "3–5 days" },
-  { drug: "Amoxicillin", drugClass: "Penicillin", mrlMilk: "4 µg/kg", typicalWithdrawal: "2–4 days" },
-  { drug: "Enrofloxacin", drugClass: "Fluoroquinolone", mrlMilk: "Not permitted in milk", typicalWithdrawal: "4–7 days" },
-  { drug: "Ceftiofur", drugClass: "Cephalosporin", mrlMilk: "100 µg/kg", typicalWithdrawal: "0–3 days" },
-  { drug: "Gentamicin", drugClass: "Aminoglycoside", mrlMilk: "100 µg/kg", typicalWithdrawal: "5–7 days" },
+  {
+    drug: "Oxytetracycline",
+    drugClass: "Tetracycline",
+    mrlMilk: "100 µg/kg",
+    typicalWithdrawal: "3–5 days",
+  },
+  {
+    drug: "Amoxicillin",
+    drugClass: "Penicillin",
+    mrlMilk: "4 µg/kg",
+    typicalWithdrawal: "2–4 days",
+  },
+  {
+    drug: "Enrofloxacin",
+    drugClass: "Fluoroquinolone",
+    mrlMilk: "Not permitted in milk",
+    typicalWithdrawal: "4–7 days",
+  },
+  {
+    drug: "Ceftiofur",
+    drugClass: "Cephalosporin",
+    mrlMilk: "100 µg/kg",
+    typicalWithdrawal: "0–3 days",
+  },
+  {
+    drug: "Gentamicin",
+    drugClass: "Aminoglycoside",
+    mrlMilk: "100 µg/kg",
+    typicalWithdrawal: "5–7 days",
+  },
 ];
 
 /** Fixed "today" so the prototype demo always shows both SAFE and HOLD animals. */
 export const DEMO_TODAY = new Date("2026-09-21T06:00:00Z");
 
 export const farms = [
-  { id: "FARM-KOL-014", farmer: "Ramesh Patil", village: "Kolewadi", district: "Satara", centreCode: "CC-SAT-07" },
-  { id: "FARM-KOL-022", farmer: "Sunita Deshmukh", village: "Kolewadi", district: "Satara", centreCode: "CC-SAT-07" },
-  { id: "FARM-ANG-009", farmer: "Iqbal Shaikh", village: "Angapur", district: "Satara", centreCode: "CC-SAT-07" },
+  {
+    id: "FARM-KOL-014",
+    farmer: "Ramesh Patil",
+    village: "Kolewadi",
+    district: "Satara",
+    centreCode: "CC-SAT-07",
+  },
+  {
+    id: "FARM-KOL-022",
+    farmer: "Sunita Deshmukh",
+    village: "Kolewadi",
+    district: "Satara",
+    centreCode: "CC-SAT-07",
+  },
+  {
+    id: "FARM-ANG-009",
+    farmer: "Iqbal Shaikh",
+    village: "Angapur",
+    district: "Satara",
+    centreCode: "CC-SAT-07",
+  },
 ];
 
 export const cattle: Cattle[] = [
-  { id: "COW-1042", name: "Gauri", breed: "Gir", farmId: "FARM-KOL-014", farmerName: "Ramesh Patil", village: "Kolewadi", health: "Under treatment", lactation: 3 },
-  { id: "COW-1043", name: "Lakshmi", breed: "Sahiwal", farmId: "FARM-KOL-014", farmerName: "Ramesh Patil", village: "Kolewadi", health: "Healthy", lactation: 2 },
-  { id: "COW-1044", name: "Nandini", breed: "HF Cross", farmId: "FARM-KOL-014", farmerName: "Ramesh Patil", village: "Kolewadi", health: "Recovering", lactation: 4 },
-  { id: "COW-1045", name: "Ganga", breed: "Jersey Cross", farmId: "FARM-KOL-014", farmerName: "Ramesh Patil", village: "Kolewadi", health: "Healthy", lactation: 1 },
-  { id: "COW-1046", name: "Tulsi", breed: "Gir", farmId: "FARM-KOL-014", farmerName: "Ramesh Patil", village: "Kolewadi", health: "Healthy", lactation: 5 },
-  { id: "COW-2011", name: "Kamdhenu", breed: "Sahiwal", farmId: "FARM-KOL-022", farmerName: "Sunita Deshmukh", village: "Kolewadi", health: "Under treatment", lactation: 2 },
-  { id: "COW-2012", name: "Radha", breed: "HF Cross", farmId: "FARM-KOL-022", farmerName: "Sunita Deshmukh", village: "Kolewadi", health: "Healthy", lactation: 3 },
-  { id: "COW-3001", name: "Sheru", breed: "Red Sindhi", farmId: "FARM-ANG-009", farmerName: "Iqbal Shaikh", village: "Angapur", health: "Healthy", lactation: 2 },
-  { id: "COW-3002", name: "Basanti", breed: "Gir", farmId: "FARM-ANG-009", farmerName: "Iqbal Shaikh", village: "Angapur", health: "Recovering", lactation: 4 },
+  {
+    id: "COW-1042",
+    name: "Gauri",
+    breed: "Gir",
+    farmId: "FARM-KOL-014",
+    farmerName: "Ramesh Patil",
+    village: "Kolewadi",
+    health: "Under treatment",
+    lactation: 3,
+  },
+  {
+    id: "COW-1043",
+    name: "Lakshmi",
+    breed: "Sahiwal",
+    farmId: "FARM-KOL-014",
+    farmerName: "Ramesh Patil",
+    village: "Kolewadi",
+    health: "Healthy",
+    lactation: 2,
+  },
+  {
+    id: "COW-1044",
+    name: "Nandini",
+    breed: "HF Cross",
+    farmId: "FARM-KOL-014",
+    farmerName: "Ramesh Patil",
+    village: "Kolewadi",
+    health: "Recovering",
+    lactation: 4,
+  },
+  {
+    id: "COW-1045",
+    name: "Ganga",
+    breed: "Jersey Cross",
+    farmId: "FARM-KOL-014",
+    farmerName: "Ramesh Patil",
+    village: "Kolewadi",
+    health: "Healthy",
+    lactation: 1,
+  },
+  {
+    id: "COW-1046",
+    name: "Tulsi",
+    breed: "Gir",
+    farmId: "FARM-KOL-014",
+    farmerName: "Ramesh Patil",
+    village: "Kolewadi",
+    health: "Healthy",
+    lactation: 5,
+  },
+  {
+    id: "COW-2011",
+    name: "Kamdhenu",
+    breed: "Sahiwal",
+    farmId: "FARM-KOL-022",
+    farmerName: "Sunita Deshmukh",
+    village: "Kolewadi",
+    health: "Under treatment",
+    lactation: 2,
+  },
+  {
+    id: "COW-2012",
+    name: "Radha",
+    breed: "HF Cross",
+    farmId: "FARM-KOL-022",
+    farmerName: "Sunita Deshmukh",
+    village: "Kolewadi",
+    health: "Healthy",
+    lactation: 3,
+  },
+  {
+    id: "COW-3001",
+    name: "Sheru",
+    breed: "Red Sindhi",
+    farmId: "FARM-ANG-009",
+    farmerName: "Iqbal Shaikh",
+    village: "Angapur",
+    health: "Healthy",
+    lactation: 2,
+  },
+  {
+    id: "COW-3002",
+    name: "Basanti",
+    breed: "Gir",
+    farmId: "FARM-ANG-009",
+    farmerName: "Iqbal Shaikh",
+    village: "Angapur",
+    health: "Recovering",
+    lactation: 4,
+  },
 ];
 
 export const treatments: Treatment[] = [
   {
-    id: "TRT-9001", cowId: "COW-1042", drug: "Oxytetracycline", drugClass: "Tetracycline",
-    dose: "10 mg/kg once daily", route: "Intramuscular", reason: "Clinical mastitis (left fore quarter)",
-    vetName: "Dr. Anjali Kulkarni", vetRegNo: "MVC/2016/4417", startDate: "2026-09-19", courseDays: 3,
-    withdrawalDays: 5, notes: "Milk from this animal must be withheld from pooling until clearance.",
+    id: "TRT-9001",
+    cowId: "COW-1042",
+    drug: "Oxytetracycline",
+    drugClass: "Tetracycline",
+    dose: "10 mg/kg once daily",
+    route: "Intramuscular",
+    reason: "Clinical mastitis (left fore quarter)",
+    vetName: "Dr. Anjali Kulkarni",
+    vetRegNo: "MVC/2016/4417",
+    startDate: "2026-09-19",
+    courseDays: 3,
+    withdrawalDays: 5,
+    notes: "Milk from this animal must be withheld from pooling until clearance.",
   },
   {
-    id: "TRT-9002", cowId: "COW-2011", drug: "Enrofloxacin", drugClass: "Fluoroquinolone",
-    dose: "5 mg/kg once daily", route: "Intramuscular", reason: "Respiratory infection",
-    vetName: "Dr. Anjali Kulkarni", vetRegNo: "MVC/2016/4417", startDate: "2026-09-18", courseDays: 4,
+    id: "TRT-9002",
+    cowId: "COW-2011",
+    drug: "Enrofloxacin",
+    drugClass: "Fluoroquinolone",
+    dose: "5 mg/kg once daily",
+    route: "Intramuscular",
+    reason: "Respiratory infection",
+    vetName: "Dr. Anjali Kulkarni",
+    vetRegNo: "MVC/2016/4417",
+    startDate: "2026-09-18",
+    courseDays: 4,
     withdrawalDays: 7,
   },
   {
-    id: "TRT-9003", cowId: "COW-1044", drug: "Ceftiofur", drugClass: "Cephalosporin",
-    dose: "1 mg/kg once daily", route: "Intramammary", reason: "Sub-clinical mastitis",
-    vetName: "Dr. Suresh Rane", vetRegNo: "MVC/2011/2280", startDate: "2026-09-10", courseDays: 3,
+    id: "TRT-9003",
+    cowId: "COW-1044",
+    drug: "Ceftiofur",
+    drugClass: "Cephalosporin",
+    dose: "1 mg/kg once daily",
+    route: "Intramammary",
+    reason: "Sub-clinical mastitis",
+    vetName: "Dr. Suresh Rane",
+    vetRegNo: "MVC/2011/2280",
+    startDate: "2026-09-10",
+    courseDays: 3,
     withdrawalDays: 3,
   },
   {
-    id: "TRT-9004", cowId: "COW-3002", drug: "Amoxicillin", drugClass: "Penicillin",
-    dose: "7 mg/kg twice daily", route: "Intramuscular", reason: "Post-calving metritis",
-    vetName: "Dr. Suresh Rane", vetRegNo: "MVC/2011/2280", startDate: "2026-09-05", courseDays: 5,
+    id: "TRT-9004",
+    cowId: "COW-3002",
+    drug: "Amoxicillin",
+    drugClass: "Penicillin",
+    dose: "7 mg/kg twice daily",
+    route: "Intramuscular",
+    reason: "Post-calving metritis",
+    vetName: "Dr. Suresh Rane",
+    vetRegNo: "MVC/2011/2280",
+    startDate: "2026-09-05",
+    courseDays: 5,
     withdrawalDays: 4,
   },
   {
-    id: "TRT-9005", cowId: "COW-1046", drug: "Gentamicin", drugClass: "Aminoglycoside",
-    dose: "4 mg/kg once daily", route: "Intravenous", reason: "Wound infection",
-    vetName: "Dr. Anjali Kulkarni", vetRegNo: "MVC/2016/4417", startDate: "2026-08-22", courseDays: 4,
+    id: "TRT-9005",
+    cowId: "COW-1046",
+    drug: "Gentamicin",
+    drugClass: "Aminoglycoside",
+    dose: "4 mg/kg once daily",
+    route: "Intravenous",
+    reason: "Wound infection",
+    vetName: "Dr. Anjali Kulkarni",
+    vetRegNo: "MVC/2016/4417",
+    startDate: "2026-08-22",
+    courseDays: 4,
     withdrawalDays: 7,
   },
 ];
 
 export const milkBatches: MilkBatch[] = [
   {
-    id: "MB-2026-0921-A", centre: "Kolewadi Collection Centre", centreCode: "CC-SAT-07", date: "2026-09-21",
-    volumeL: 412, contributingCows: ["COW-1043", "COW-1045", "COW-1046", "COW-2012"],
-    farmers: ["Ramesh Patil", "Sunita Deshmukh"], status: "SAFE", dispatchedTo: "PB-2026-0921-M1",
+    id: "MB-2026-0921-A",
+    centre: "Kolewadi Collection Centre",
+    centreCode: "CC-SAT-07",
+    date: "2026-09-21",
+    volumeL: 412,
+    contributingCows: ["COW-1043", "COW-1045", "COW-1046", "COW-2012"],
+    farmers: ["Ramesh Patil", "Sunita Deshmukh"],
+    status: "SAFE",
+    dispatchedTo: "PB-2026-0921-M1",
   },
   {
-    id: "MB-2026-0921-B", centre: "Kolewadi Collection Centre", centreCode: "CC-SAT-07", date: "2026-09-21",
-    volumeL: 96, contributingCows: ["COW-1042", "COW-2011"],
-    farmers: ["Ramesh Patil", "Sunita Deshmukh"], status: "HOLD",
+    id: "MB-2026-0921-B",
+    centre: "Kolewadi Collection Centre",
+    centreCode: "CC-SAT-07",
+    date: "2026-09-21",
+    volumeL: 96,
+    contributingCows: ["COW-1042", "COW-2011"],
+    farmers: ["Ramesh Patil", "Sunita Deshmukh"],
+    status: "HOLD",
   },
   {
-    id: "MB-2026-0921-C", centre: "Angapur Collection Centre", centreCode: "CC-SAT-11", date: "2026-09-21",
-    volumeL: 268, contributingCows: ["COW-3001", "COW-3002"], farmers: ["Iqbal Shaikh"],
-    status: "SAFE", dispatchedTo: "PB-2026-0921-M1",
+    id: "MB-2026-0921-C",
+    centre: "Angapur Collection Centre",
+    centreCode: "CC-SAT-11",
+    date: "2026-09-21",
+    volumeL: 268,
+    contributingCows: ["COW-3001", "COW-3002"],
+    farmers: ["Iqbal Shaikh"],
+    status: "SAFE",
+    dispatchedTo: "PB-2026-0921-M1",
   },
   {
-    id: "MB-2026-0920-A", centre: "Kolewadi Collection Centre", centreCode: "CC-SAT-07", date: "2026-09-20",
-    volumeL: 389, contributingCows: ["COW-1043", "COW-1044", "COW-1045"], farmers: ["Ramesh Patil"],
-    status: "SAFE", dispatchedTo: "PB-2026-0920-M4",
+    id: "MB-2026-0920-A",
+    centre: "Kolewadi Collection Centre",
+    centreCode: "CC-SAT-07",
+    date: "2026-09-20",
+    volumeL: 389,
+    contributingCows: ["COW-1043", "COW-1044", "COW-1045"],
+    farmers: ["Ramesh Patil"],
+    status: "SAFE",
+    dispatchedTo: "PB-2026-0920-M4",
   },
 ];
 
 export const processingBatches: ProcessingBatch[] = [
   {
-    id: "PB-2026-0921-M1", factory: "Satara Co-operative Dairy Plant", product: "Toned Milk 500 ml",
-    date: "2026-09-21", milkBatchIds: ["MB-2026-0921-A", "MB-2026-0921-C"], volumeL: 680, packs: 1360, status: "SAFE",
+    id: "PB-2026-0921-M1",
+    factory: "Satara Co-operative Dairy Plant",
+    product: "Toned Milk 500 ml",
+    date: "2026-09-21",
+    milkBatchIds: ["MB-2026-0921-A", "MB-2026-0921-C"],
+    volumeL: 680,
+    packs: 1360,
+    status: "SAFE",
   },
   {
-    id: "PB-2026-0920-M4", factory: "Satara Co-operative Dairy Plant", product: "Full Cream Milk 1 L",
-    date: "2026-09-20", milkBatchIds: ["MB-2026-0920-A"], volumeL: 389, packs: 389, status: "SAFE",
+    id: "PB-2026-0920-M4",
+    factory: "Satara Co-operative Dairy Plant",
+    product: "Full Cream Milk 1 L",
+    date: "2026-09-20",
+    milkBatchIds: ["MB-2026-0920-A"],
+    volumeL: 389,
+    packs: 389,
+    status: "SAFE",
   },
 ];
 
@@ -242,7 +437,10 @@ export function cowById(id: string) {
 
 function demoHash(input: string) {
   // Deterministic, dependency-free 128-bit-ish digest for demonstration purposes.
-  let h1 = 0x811c9dc5, h2 = 0x01000193, h3 = 0x9e3779b9, h4 = 0x85ebca6b;
+  let h1 = 0x811c9dc5,
+    h2 = 0x01000193,
+    h3 = 0x9e3779b9,
+    h4 = 0x85ebca6b;
   for (let i = 0; i < input.length; i++) {
     const c = input.charCodeAt(i);
     h1 = Math.imul(h1 ^ c, 16777619) >>> 0;
@@ -250,26 +448,108 @@ function demoHash(input: string) {
     h3 = (h3 ^ Math.imul(c + i, 374761393)) >>> 0;
     h4 = Math.imul(h4 ^ (c << (i % 13)), 2246822519) >>> 0;
   }
-  return (
-    "0x" + [h1, h2, h3, h4].map((h) => h.toString(16).padStart(8, "0")).join("")
-  );
+  return "0x" + [h1, h2, h3, h4].map((h) => h.toString(16).padStart(8, "0")).join("");
 }
 
 const rawEvents: Omit<LedgerEvent, "hash" | "prevHash">[] = [
-  { id: "EVT-0001", type: "TREATMENT_RECORDED", refId: "TRT-9005", actor: "Dr. Anjali Kulkarni", timestamp: "2026-08-22T09:14:00Z" },
-  { id: "EVT-0002", type: "WITHDRAWAL_CLEARED", refId: "COW-1046", actor: "System", timestamp: "2026-09-02T00:05:00Z" },
-  { id: "EVT-0003", type: "TREATMENT_RECORDED", refId: "TRT-9004", actor: "Dr. Suresh Rane", timestamp: "2026-09-05T11:40:00Z" },
-  { id: "EVT-0004", type: "TREATMENT_RECORDED", refId: "TRT-9003", actor: "Dr. Suresh Rane", timestamp: "2026-09-10T08:02:00Z" },
-  { id: "EVT-0005", type: "MILK_BATCH_CREATED", refId: "MB-2026-0920-A", actor: "CC-SAT-07", timestamp: "2026-09-20T06:20:00Z" },
-  { id: "EVT-0006", type: "PROCESSING_LINKED", refId: "PB-2026-0920-M4", actor: "Satara Plant", timestamp: "2026-09-20T13:10:00Z" },
-  { id: "EVT-0007", type: "TREATMENT_RECORDED", refId: "TRT-9002", actor: "Dr. Anjali Kulkarni", timestamp: "2026-09-18T16:25:00Z" },
-  { id: "EVT-0008", type: "TREATMENT_RECORDED", refId: "TRT-9001", actor: "Dr. Anjali Kulkarni", timestamp: "2026-09-19T07:55:00Z" },
-  { id: "EVT-0009", type: "MILK_BATCH_CREATED", refId: "MB-2026-0921-A", actor: "CC-SAT-07", timestamp: "2026-09-21T06:05:00Z" },
-  { id: "EVT-0010", type: "BATCH_HELD", refId: "MB-2026-0921-B", actor: "CC-SAT-07", timestamp: "2026-09-21T06:07:00Z" },
-  { id: "EVT-0011", type: "MILK_BATCH_CREATED", refId: "MB-2026-0921-C", actor: "CC-SAT-11", timestamp: "2026-09-21T06:18:00Z" },
-  { id: "EVT-0012", type: "BATCH_DISPATCHED", refId: "MB-2026-0921-A", actor: "CC-SAT-07", timestamp: "2026-09-21T07:30:00Z" },
-  { id: "EVT-0013", type: "PROCESSING_LINKED", refId: "PB-2026-0921-M1", actor: "Satara Plant", timestamp: "2026-09-21T10:45:00Z" },
-  { id: "EVT-0014", type: "AUDIT_CHECK", refId: "CC-SAT-07", actor: "State Dairy Authority", timestamp: "2026-09-21T12:00:00Z" },
+  {
+    id: "EVT-0001",
+    type: "TREATMENT_RECORDED",
+    refId: "TRT-9005",
+    actor: "Dr. Anjali Kulkarni",
+    timestamp: "2026-08-22T09:14:00Z",
+  },
+  {
+    id: "EVT-0002",
+    type: "WITHDRAWAL_CLEARED",
+    refId: "COW-1046",
+    actor: "System",
+    timestamp: "2026-09-02T00:05:00Z",
+  },
+  {
+    id: "EVT-0003",
+    type: "TREATMENT_RECORDED",
+    refId: "TRT-9004",
+    actor: "Dr. Suresh Rane",
+    timestamp: "2026-09-05T11:40:00Z",
+  },
+  {
+    id: "EVT-0004",
+    type: "TREATMENT_RECORDED",
+    refId: "TRT-9003",
+    actor: "Dr. Suresh Rane",
+    timestamp: "2026-09-10T08:02:00Z",
+  },
+  {
+    id: "EVT-0005",
+    type: "MILK_BATCH_CREATED",
+    refId: "MB-2026-0920-A",
+    actor: "CC-SAT-07",
+    timestamp: "2026-09-20T06:20:00Z",
+  },
+  {
+    id: "EVT-0006",
+    type: "PROCESSING_LINKED",
+    refId: "PB-2026-0920-M4",
+    actor: "Satara Plant",
+    timestamp: "2026-09-20T13:10:00Z",
+  },
+  {
+    id: "EVT-0007",
+    type: "TREATMENT_RECORDED",
+    refId: "TRT-9002",
+    actor: "Dr. Anjali Kulkarni",
+    timestamp: "2026-09-18T16:25:00Z",
+  },
+  {
+    id: "EVT-0008",
+    type: "TREATMENT_RECORDED",
+    refId: "TRT-9001",
+    actor: "Dr. Anjali Kulkarni",
+    timestamp: "2026-09-19T07:55:00Z",
+  },
+  {
+    id: "EVT-0009",
+    type: "MILK_BATCH_CREATED",
+    refId: "MB-2026-0921-A",
+    actor: "CC-SAT-07",
+    timestamp: "2026-09-21T06:05:00Z",
+  },
+  {
+    id: "EVT-0010",
+    type: "BATCH_HELD",
+    refId: "MB-2026-0921-B",
+    actor: "CC-SAT-07",
+    timestamp: "2026-09-21T06:07:00Z",
+  },
+  {
+    id: "EVT-0011",
+    type: "MILK_BATCH_CREATED",
+    refId: "MB-2026-0921-C",
+    actor: "CC-SAT-11",
+    timestamp: "2026-09-21T06:18:00Z",
+  },
+  {
+    id: "EVT-0012",
+    type: "BATCH_DISPATCHED",
+    refId: "MB-2026-0921-A",
+    actor: "CC-SAT-07",
+    timestamp: "2026-09-21T07:30:00Z",
+  },
+  {
+    id: "EVT-0013",
+    type: "PROCESSING_LINKED",
+    refId: "PB-2026-0921-M1",
+    actor: "Satara Plant",
+    timestamp: "2026-09-21T10:45:00Z",
+  },
+  {
+    id: "EVT-0014",
+    type: "AUDIT_CHECK",
+    refId: "CC-SAT-07",
+    actor: "State Dairy Authority",
+    timestamp: "2026-09-21T12:00:00Z",
+  },
 ];
 
 export const ledger: LedgerEvent[] = rawEvents.reduce<LedgerEvent[]>((acc, e) => {
