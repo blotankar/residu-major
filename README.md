@@ -169,6 +169,11 @@ Before running `git add .`, review `git status` and make sure `.env`, credential
 
 ## Troubleshooting
 
+### Browser shows a folder listing at `127.0.0.1:5500`
+- This project is a TanStack Start app, not a static site. Do not open the repository with VS Code Live Server.
+- In a terminal at the repository root, run `bun install` if you have not installed dependencies, then run `bun run dev`.
+- Open the URL printed by the development server (usually `http://localhost:5173`) instead of the Live Server URL.
+
 ### `DATABASE_URL is not defined`
 - Confirm `backend/.env` exists.
 - Check that the variable is named exactly `DATABASE_URL`.
