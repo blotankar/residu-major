@@ -84,6 +84,11 @@ function RegisterPage() {
     setError("");
     setSuccess("");
 
+    if (!selectedRole) {
+      setError("Select a registration role before continuing.");
+      return;
+    }
+
     if (!fullName.trim() || !email.trim() || !password) {
       setError("Please complete all required fields.");
       return;
@@ -108,8 +113,8 @@ function RegisterPage() {
         return;
       }
 
-      profile.village = village.trim();
-      profile.phone = phone.trim();
+      profile["village"] = village.trim();
+      profile["phone"] = phone.trim();
     }
 
     if (selectedRole === ("veterinarian" as RoleId)) {
@@ -118,8 +123,8 @@ function RegisterPage() {
         return;
       }
 
-      profile.licenseNo = licenseNo.trim();
-      profile.phone = phone.trim();
+      profile["licenseNo"] = licenseNo.trim();
+      profile["phone"] = phone.trim();
     }
 
     if (selectedRole === ("collection_centre" as RoleId)) {
@@ -128,9 +133,9 @@ function RegisterPage() {
         return;
       }
 
-      profile.code = organizationCode.trim();
-      profile.village = village.trim();
-      profile.address = address.trim();
+      profile["code"] = organizationCode.trim();
+      profile["village"] = village.trim();
+      profile["address"] = address.trim();
     }
 
     if (selectedRole === ("factory" as RoleId)) {
@@ -139,8 +144,8 @@ function RegisterPage() {
         return;
       }
 
-      profile.code = organizationCode.trim();
-      profile.address = address.trim();
+      profile["code"] = organizationCode.trim();
+      profile["address"] = address.trim();
     }
 
     setLoading(true);

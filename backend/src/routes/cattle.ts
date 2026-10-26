@@ -29,7 +29,7 @@ export async function getCattle(user: AuthenticatedUser) {
           user: true,
         },
       },
-      treatments: true,
+      treatments: { orderBy: { administeredAt: "desc" } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -144,7 +144,7 @@ export async function createCattle(
             user: true,
           },
         },
-        treatments: true,
+        treatments: { orderBy: { administeredAt: "desc" } },
       },
     });
 

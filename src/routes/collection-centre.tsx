@@ -25,8 +25,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { fetchCattle, type ApiCattle } from "@/lib/api";
-import { formatDate, milkBatches } from "@/lib/residuguard-data";
+import {
+  createMilkBatch,
+  fetchCattle,
+  fetchMilkBatches,
+  type ApiCattle,
+  type ApiMilkBatch,
+} from "@/lib/api";
+import { formatDate, type Status } from "@/lib/residuguard-data";
 
 export const Route = createFileRoute("/collection-centre")({
   head: () => ({
@@ -52,7 +58,7 @@ export const Route = createFileRoute("/collection-centre")({
   }),
 
   component: () => (
-    <RoleGate role="collection">
+    <RoleGate role="collection_centre">
       <CentreDashboard />
     </RoleGate>
   ),
@@ -64,42 +70,61 @@ function CentreDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<string[]>([]);
-  const [created, setCreated] = useState<string[]>([]);
+  const [batches, setBatches] = useState<ApiMilkBatch[]>([]);
+  const [volumeL, setVolumeL] = useState("50");
+  const [savingBatch, setSavingBatch] = useState(false);
+  const [batchError, setBatchError] = useState<string | null>(null);
 
   // Load cattle from PostgreSQL through the backend API
   useEffect(() => {
-    fetchCattle()
-      .then((data) => {
-        setCattle(data);
-        setSelected(data.map((cow) => cow.id));
+    Promise.all([fetchCattle(), fetchMilkBatches()])
+      .then(([cattleRecords, batchRecords]) => {
+        setCattle(cattleRecords);
+        setBatches(batchRecords);
+        setSelected(cattleRecords
+          .filter((cow) => {
+            const latest = cow.treatments[0];
+            return !latest || (
+              latest.withdrawalEnds !== null &&
+              new Date(latest.withdrawalEnds).getTime() < Date.now()
+            );
+          })
+          .map((cow) => cow.id));
         setError(null);
       })
       .catch((err) => {
         console.error("Failed to load cattle:", err);
-        setError("Unable to load cattle data from the backend.");
+        setError(err instanceof Error ? err.message : "Unable to load collection data.");
       })
       .finally(() => {
         setLoading(false);
       });
   }, []);
 
-  /*
-   * For this first frontend/backend integration:
-   * cattle returned from PostgreSQL are treated as SAFE.
-   *
-   * We will replace this with real withdrawal calculation
-   * using Treatment.withdrawalEnds in the next step.
-   */
   const intake = useMemo(
-    () =>
-      cattle.map((cow) => ({
+    () => cattle.map((cow) => {
+      const latest = cow.treatments[0];
+      const clearsOn = latest?.withdrawalEnds
+        ? new Date(latest.withdrawalEnds)
+        : undefined;
+      const held = Boolean(
+        latest && (!clearsOn || clearsOn.getTime() >= Date.now()),
+      );
+      return {
         cow,
         wd: {
-          status: "SAFE" as const,
-          reason: "No active withdrawal period recorded.",
-          clearsOn: undefined,
+          status: (held ? "HOLD" : "SAFE") as Status,
+          reason: held
+            ? clearsOn
+              ? `Milk is held until ${formatDate(clearsOn)}.`
+              : "Latest treatment has no confirmed withdrawal end date."
+            : latest
+              ? `Latest withdrawal ended ${formatDate(clearsOn!)}.`
+              : "No antibiotic treatment recorded.",
+          clearsOn,
         },
-      })),
+      };
+    }),
     [cattle],
   );
 
@@ -115,25 +140,36 @@ function CentreDashboard() {
     );
   }
 
-  function createBatch() {
-    const id = `MB-2026-0921-${String.fromCharCode(
-      68 + created.length,
-    )}`;
-
-    setCreated((previous) => [...previous, id]);
-
-    toast.success(`Milk batch ${id} created`, {
-      description: `${selected.length} eligible animals pooled. Hash-chained event written to the ledger.`,
-    });
+  async function createBatch() {
+    const quantity = Number(volumeL);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setBatchError("Enter a valid milk quantity greater than zero.");
+      return;
+    }
+    setSavingBatch(true);
+    setBatchError(null);
+    try {
+      const result = await createMilkBatch({
+        cattleIds: selected,
+        volumeL: quantity,
+      });
+      setBatches(await fetchMilkBatches());
+      setSelected([]);
+      toast.success(`Milk batch ${result.milkBatch.batchId} created`, {
+        description: `${quantity} L recorded with its contributing eligible animals.`,
+      });
+    } catch (err) {
+      setBatchError(err instanceof Error ? err.message : "Unable to create milk batch.");
+    } finally {
+      setSavingBatch(false);
+    }
   }
 
-  const todays = milkBatches.filter(
-    (batch) => batch.date === "2026-09-21",
-  );
+  const farmersCount = new Set(cattle.map((cow) => cow.farmer.user.name)).size;
 
   return (
     <PortalShell
-      role="collection"
+      role="collection_centre"
       title="Collection Centre Dashboard"
       subtitle="Kolewadi Collection Centre · CC-SAT-07 · Morning shift, 21 Sep 2026"
     >
@@ -141,7 +177,7 @@ function CentreDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Farmers Registered"
-          value={3}
+          value={farmersCount}
           icon={Users}
         />
 
@@ -162,7 +198,7 @@ function CentreDashboard() {
         <StatCard
           label="Batches Dispatched"
           value={
-            todays.filter((batch) => batch.dispatchedTo).length
+            batches.filter((batch) => batch.processingBatches.length > 0).length
           }
           icon={Truck}
           tone="info"
@@ -203,11 +239,24 @@ function CentreDashboard() {
 
               <Button
                 onClick={createBatch}
-                disabled={selected.length === 0}
+                disabled={selected.length === 0 || savingBatch || loading || Boolean(error)}
               >
-                Create milk batch ID ({selected.length} animals)
+                {savingBatch ? "Creating batch..." : `Create milk batch (${selected.length} animals)`}
               </Button>
             </div>
+
+            <label className="mt-4 block max-w-xs text-sm font-medium">
+              Milk quantity (L)
+              <input
+                type="number"
+                min="0.001"
+                step="0.001"
+                required
+                value={volumeL}
+                onChange={(event) => setVolumeL(event.target.value)}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2"
+              />
+            </label>
 
             {loading && (
               <p className="mt-4 text-sm text-muted-foreground">
@@ -215,9 +264,9 @@ function CentreDashboard() {
               </p>
             )}
 
-            {error && (
+            {(error || batchError) && (
               <p className="mt-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
+                {error || batchError}
               </p>
             )}
 
@@ -291,11 +340,6 @@ function CentreDashboard() {
               </div>
             )}
 
-            {created.length > 0 ? (
-              <p className="mt-4 rounded-md bg-safe-soft p-3 text-sm text-safe">
-                Created this session: {created.join(", ")}
-              </p>
-            ) : null}
           </div>
         </TabsContent>
 
@@ -304,6 +348,11 @@ function CentreDashboard() {
            ========================= */}
         <TabsContent value="batches" className="mt-5">
           <div className="panel overflow-x-auto p-5">
+            {batches.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                {loading ? "Loading milk batches..." : "No milk batches recorded yet."}
+              </p>
+            ) : null}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -324,10 +373,10 @@ function CentreDashboard() {
               </TableHeader>
 
               <TableBody>
-                {milkBatches.map((batch) => (
+                {batches.map((batch) => (
                   <TableRow key={batch.id}>
                     <TableCell className="font-medium">
-                      {batch.id}
+                      {batch.batchId}
                     </TableCell>
 
                     <TableCell>
@@ -335,11 +384,11 @@ function CentreDashboard() {
                     </TableCell>
 
                     <TableCell>
-                      {batch.volumeL} L
+                      {Number(batch.volumeL)} L
                     </TableCell>
 
                     <TableCell className="text-sm text-muted-foreground">
-                      {batch.contributingCows.join(", ")}
+                      {batch.contributingAnimals.map(({ cattle: cow }) => cow.cattleId).join(", ")}
                     </TableCell>
 
                     <TableCell>
@@ -347,7 +396,7 @@ function CentreDashboard() {
                     </TableCell>
 
                     <TableCell>
-                      {batch.dispatchedTo ?? "Held at centre"}
+                      {batch.processingBatches[0]?.processingBatch.batchId ?? "At collection centre"}
                     </TableCell>
                   </TableRow>
                 ))}

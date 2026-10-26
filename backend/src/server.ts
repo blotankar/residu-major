@@ -1,6 +1,8 @@
 
 import { getCattle, createCattle } from "./routes/cattle";
 import { login, register } from "./routes/auth";
+import { handleFactoryRequest } from "./routes/factory";
+import { handleMilkBatchRequest } from "./routes/milk-batches";
 import {
   authenticateRequest,
   requireRoles,
@@ -58,6 +60,7 @@ const server = Bun.serve({
         const permission = requireRoles(user, [
           "farmer",
           "veterinarian",
+          "collection_centre",
           "authority",
         ]);
 
@@ -90,6 +93,37 @@ const server = Bun.serve({
 
         return createCattle(req, user);
       }
+    }
+
+    if (
+      path === "/api/milk-batches" &&
+      (req.method === "GET" || req.method === "POST")
+    ) {
+      const user = authenticateRequest(req);
+      if (user instanceof Response) return user;
+
+      const permission = requireRoles(user, ["collection_centre"]);
+      if (permission) return permission;
+
+      const response = await handleMilkBatchRequest(req, user);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      return response;
+    }
+
+    if (path.startsWith("/api/factory/")) {
+      const user = authenticateRequest(req);
+      if (user instanceof Response) return user;
+
+      const permission = requireRoles(user, ["factory"]);
+      if (permission) return permission;
+
+      const response = await handleFactoryRequest(req, user);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      return response;
     }
 
     return Response.json(

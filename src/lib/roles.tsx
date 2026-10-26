@@ -1,5 +1,6 @@
 import { Tractor, Stethoscope, Milk, Factory, ShieldCheck, ScanLine } from "lucide-react";
 import type { RoleId } from "./residuguard-data";
+export type { RoleId } from "./residuguard-data";
 
 export interface RoleDef {
   id: RoleId;
@@ -22,7 +23,7 @@ export const roles: RoleDef[] = [
     icon: Tractor,
   },
   {
-    id: "vet",
+    id: "veterinarian",
     label: "Veterinarian",
     person: "Dr. Anjali Kulkarni",
     org: "Reg. MVC/2016/4417",
@@ -31,7 +32,7 @@ export const roles: RoleDef[] = [
     icon: Stethoscope,
   },
   {
-    id: "collection",
+    id: "collection_centre",
     label: "Collection Centre",
     person: "Kolewadi Collection Centre",
     org: "CC-SAT-07",

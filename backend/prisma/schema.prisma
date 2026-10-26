@@ -30,6 +30,35 @@ enum ProcessingBatchStatus {
   HOLD
 }
 
+enum QualityTestResult {
+  PASS
+  FAIL
+  INCONCLUSIVE
+}
+
+enum QualityInspectionStatus {
+  ACCEPTED
+  ON_HOLD
+  REJECTED
+}
+
+enum ProductLotStatus {
+  AVAILABLE
+  HOLD
+  RECALLED
+  DEPLETED
+}
+
+enum InventoryMovementType {
+  PRODUCTION_OUTPUT
+  DISPATCH
+}
+
+enum DispatchStatus {
+  DISPATCHED
+  CANCELLED
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -38,11 +67,16 @@ model User {
   role         UserRole
   organization String?
 
-  farmer           Farmer?
-  veterinarian     Veterinarian?
-  collectionCentre CollectionCentre?
-  factory          Factory?
-  authority        Authority?
+  farmer             Farmer?
+  veterinarian       Veterinarian?
+  collectionCentre   CollectionCentre?
+  factory            Factory?
+  authority          Authority?
+  factoryReceipts    FactoryMilkBatchReceipt[] @relation("FactoryReceiptRecorder")
+  qualityInspections MilkQualityInspection[]   @relation("QualityInspector")
+  productionRuns     ProcessingBatch[]         @relation("ProductionOperator")
+  dispatches         Dispatch[]                @relation("DispatchCreator")
+  inventoryMovements InventoryMovement[]       @relation("InventoryRecorder")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -105,8 +139,10 @@ model Factory {
   code    String  @unique
   address String?
 
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   processingBatches ProcessingBatch[]
+  milkReceipts      FactoryMilkBatchReceipt[]
+  dispatches        Dispatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -129,9 +165,8 @@ model Authority {
   @@map("authorities")
 }
 
-
 model Cattle {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   cattleId    String
   name        String?
   breed       String?
@@ -179,14 +214,55 @@ model MilkBatch {
   volumeL            Float
   status             MilkBatchStatus @default(SAFE)
 
-  collectionCentre    CollectionCentre      @relation(fields: [collectionCentreId], references: [id])
+  collectionCentre    CollectionCentre         @relation(fields: [collectionCentreId], references: [id])
   contributingAnimals MilkBatchAnimal[]
   processingBatches   ProcessingMilkBatch[]
+  factoryReceipt      FactoryMilkBatchReceipt?
+  qualityInspections  MilkQualityInspection[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("milk_batches")
+}
+
+model FactoryMilkBatchReceipt {
+  id                String   @id @default(uuid())
+  milkBatchId       String   @unique
+  factoryId         String
+  receivedQuantityL Decimal  @db.Decimal(12, 3)
+  receivedAt        DateTime
+  discrepancyNote   String?
+  receivedByUserId  String
+  createdAt         DateTime @default(now())
+
+  milkBatch  MilkBatch @relation(fields: [milkBatchId], references: [id])
+  factory    Factory   @relation(fields: [factoryId], references: [id])
+  receivedBy User      @relation("FactoryReceiptRecorder", fields: [receivedByUserId], references: [id])
+
+  @@index([factoryId, receivedAt])
+  @@map("factory_milk_batch_receipts")
+}
+
+model MilkQualityInspection {
+  id                 String                  @id @default(uuid())
+  milkBatchId        String
+  inspectorUserId    String
+  temperatureC       Decimal                 @db.Decimal(7, 3)
+  fatPercent         Decimal                 @db.Decimal(7, 3)
+  snfPercent         Decimal                 @db.Decimal(7, 3)
+  acidityPercent     Decimal                 @db.Decimal(7, 3)
+  adulterationResult QualityTestResult
+  status             QualityInspectionStatus
+  remarks            String?
+  inspectedAt        DateTime                @default(now())
+  createdAt          DateTime                @default(now())
+
+  milkBatch MilkBatch @relation(fields: [milkBatchId], references: [id])
+  inspector User      @relation("QualityInspector", fields: [inspectorUserId], references: [id])
+
+  @@index([milkBatchId, inspectedAt])
+  @@map("milk_quality_inspections")
 }
 
 model MilkBatchAnimal {
@@ -211,16 +287,96 @@ model ProcessingBatch {
   product   String
   packs     Int
 
-  status ProcessingBatchStatus @default(PROCESSING)
+  status         ProcessingBatchStatus @default(PROCESSING)
+  operatorUserId String?
+  inputVolumeL   Decimal?              @db.Decimal(12, 3)
+  outputVolumeL  Decimal?              @db.Decimal(12, 3)
+  wastageL       Decimal?              @db.Decimal(12, 3)
+  completedAt    DateTime?
 
   factory           Factory               @relation(fields: [factoryId], references: [id])
+  operator          User?                 @relation("ProductionOperator", fields: [operatorUserId], references: [id])
   sourceMilkBatches ProcessingMilkBatch[]
   packages          Package[]
+  productLots       ProductLot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("processing_batches")
+}
+
+model ProductLot {
+  id                String           @id @default(uuid())
+  lotId             String           @unique
+  processingBatchId String
+  productName       String
+  producedQuantityL Decimal          @db.Decimal(12, 3)
+  currentQuantityL  Decimal          @db.Decimal(12, 3)
+  status            ProductLotStatus @default(AVAILABLE)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  processingBatch ProcessingBatch     @relation(fields: [processingBatchId], references: [id])
+  movements       InventoryMovement[]
+  dispatchItems   DispatchItem[]
+
+  @@index([processingBatchId])
+  @@index([status, createdAt])
+  @@map("product_lots")
+}
+
+model InventoryMovement {
+  id               String                @id @default(uuid())
+  productLotId     String
+  dispatchId       String?
+  recordedByUserId String
+  movementType     InventoryMovementType
+  quantityL        Decimal               @db.Decimal(12, 3)
+  reference        String?
+  createdAt        DateTime              @default(now())
+
+  productLot ProductLot @relation(fields: [productLotId], references: [id])
+  dispatch   Dispatch?  @relation(fields: [dispatchId], references: [id])
+  recordedBy User       @relation("InventoryRecorder", fields: [recordedByUserId], references: [id])
+
+  @@index([productLotId, createdAt])
+  @@index([dispatchId])
+  @@map("inventory_movements")
+}
+
+model Dispatch {
+  id               String         @id @default(uuid())
+  dispatchId       String         @unique
+  factoryId        String
+  destination      String
+  dispatchedAt     DateTime
+  transportDetails String?
+  status           DispatchStatus @default(DISPATCHED)
+  createdByUserId  String
+  createdAt        DateTime       @default(now())
+
+  factory   Factory             @relation(fields: [factoryId], references: [id])
+  createdBy User                @relation("DispatchCreator", fields: [createdByUserId], references: [id])
+  items     DispatchItem[]
+  movements InventoryMovement[]
+
+  @@index([factoryId, dispatchedAt])
+  @@map("factory_dispatches")
+}
+
+model DispatchItem {
+  id           String  @id @default(uuid())
+  dispatchId   String
+  productLotId String
+  quantityL    Decimal @db.Decimal(12, 3)
+
+  dispatch   Dispatch   @relation(fields: [dispatchId], references: [id])
+  productLot ProductLot @relation(fields: [productLotId], references: [id])
+
+  @@unique([dispatchId, productLotId])
+  @@index([productLotId])
+  @@map("factory_dispatch_items")
 }
 
 model ProcessingMilkBatch {

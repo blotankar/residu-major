@@ -53,7 +53,7 @@ export const Route = createFileRoute("/veterinarian")({
     ],
   }),
   component: () => (
-    <RoleGate role="vet">
+    <RoleGate role="veterinarian">
       <VetDashboard />
     </RoleGate>
   ),
@@ -103,7 +103,7 @@ function VetDashboard() {
 
   return (
     <PortalShell
-      role="vet"
+      role="veterinarian"
       title="Veterinarian Dashboard"
       subtitle={`${VET} · Reg. MVC/2016/4417 · Satara district`}
     >

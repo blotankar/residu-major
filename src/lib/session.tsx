@@ -7,8 +7,16 @@ import {
 } from "react";
 import type { RoleId } from "@/lib/roles";
 
-const API_URL = "http://localhost:3000";
+const API_URL = (import.meta.env["VITE_API_URL"] || "http://localhost:3000").replace(/\/$/, "");
 const SESSION_KEY = "residuguard.session";
+const validRoles: RoleId[] = [
+  "farmer",
+  "veterinarian",
+  "collection_centre",
+  "factory",
+  "authority",
+  "consumer",
+];
 
 export type AuthUser = {
   id: string;
@@ -37,6 +45,8 @@ type AuthResponse = {
 type SessionContextValue = {
   user: AuthUser | null;
   token: string | null;
+  role: RoleId | null;
+  hydrated: boolean;
   register: (
     fullName: string,
     email: string,
@@ -80,12 +90,11 @@ function readStoredSession(): StoredSession | null {
     }
 
     const user = parsed.user as AuthUser;
-
     if (
       typeof user.id !== "string" ||
       typeof user.fullName !== "string" ||
       typeof user.email !== "string" ||
-      typeof user.role !== "string"
+      !validRoles.includes(user.role)
     ) {
       localStorage.removeItem(SESSION_KEY);
       return null;
@@ -135,6 +144,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(
     () => initialSession?.token ?? null,
   );
+  const role = user?.role ?? null;
 
   async function register(
     fullName: string,
@@ -174,6 +184,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       );
     }
 
+    if (!validRoles.includes(result.user.role as RoleId)) {
+      throw new Error("The server returned an unsupported user role.");
+    }
+
     const authenticatedUser = result.user as AuthUser;
     const newSession: StoredSession = {
       user: authenticatedUser,
@@ -195,7 +209,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   return (
     <SessionContext.Provider
-      value={{ user, token, register, signIn, signOut }}
+      value={{ user, token, role, hydrated: true, register, signIn, signOut }}
     >
       {children}
     </SessionContext.Provider>

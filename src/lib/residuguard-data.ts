@@ -3,8 +3,8 @@
 
 export type RoleId =
   | "farmer"
-  | "vet"
-  | "collection"
+  | "veterinarian"
+  | "collection_centre"
   | "factory"
   | "authority"
   | "consumer";

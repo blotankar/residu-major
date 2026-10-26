@@ -13,6 +13,19 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("Seeding ResiduGuard database...");
 
+  async function seedUser(name: string, email: string, role: "VETERINARIAN" | "COLLECTION_CENTRE" | "FACTORY") {
+    return prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: {
+        name,
+        email,
+        passwordHash: await Bun.password.hash(crypto.randomUUID()),
+        role,
+      },
+    });
+  }
+
   // -------------------------
   // FARMER
   // -------------------------
@@ -49,7 +62,10 @@ async function main() {
 
   await prisma.cattle.upsert({
     where: {
-      cattleId: "CATTLE-001",
+      farmerId_cattleId: {
+        farmerId: farmer.id,
+        cattleId: "CATTLE-001",
+      },
     },
     update: {},
     create: {
@@ -63,7 +79,10 @@ async function main() {
 
   await prisma.cattle.upsert({
     where: {
-      cattleId: "CATTLE-002",
+      farmerId_cattleId: {
+        farmerId: farmer.id,
+        cattleId: "CATTLE-002",
+      },
     },
     update: {},
     create: {
@@ -79,12 +98,18 @@ async function main() {
   // VETERINARIAN
   // -------------------------
 
+  const vetUser = await seedUser(
+    "Dr. Anjali Sharma",
+    "anjali@residuguard.demo",
+    "VETERINARIAN",
+  );
   await prisma.veterinarian.upsert({
     where: {
       licenseNo: "VET-PUNE-001",
     },
-    update: {},
+    update: { userId: vetUser.id },
     create: {
+      userId: vetUser.id,
       name: "Dr. Anjali Sharma",
       licenseNo: "VET-PUNE-001",
       phone: "9876501234",
@@ -95,12 +120,18 @@ async function main() {
   // COLLECTION CENTRE
   // -------------------------
 
+  const centreUser = await seedUser(
+    "Pune Milk Collection Centre",
+    "centre@residuguard.demo",
+    "COLLECTION_CENTRE",
+  );
   await prisma.collectionCentre.upsert({
     where: {
       code: "CC-PUNE-001",
     },
-    update: {},
+    update: { userId: centreUser.id },
     create: {
+      userId: centreUser.id,
       name: "Pune Milk Collection Centre",
       code: "CC-PUNE-001",
       village: "Pune",
@@ -112,12 +143,18 @@ async function main() {
   // FACTORY
   // -------------------------
 
+  const factoryUser = await seedUser(
+    "Pune Dairy Processing Factory",
+    "factory@residuguard.demo",
+    "FACTORY",
+  );
   await prisma.factory.upsert({
     where: {
       code: "FACT-PUNE-001",
     },
-    update: {},
+    update: { userId: factoryUser.id },
     create: {
+      userId: factoryUser.id,
       name: "Pune Dairy Processing Factory",
       code: "FACT-PUNE-001",
       address: "Pune, Maharashtra",

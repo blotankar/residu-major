@@ -1,5 +1,5 @@
 
-const API_URL = "http://localhost:3000";
+const API_URL = (import.meta.env["VITE_API_URL"] || "http://localhost:3000").replace(/\/$/, "");
 const SESSION_KEY = "residuguard.session";
 
 export type ApiCattle = {
@@ -104,4 +104,279 @@ export async function createCattle(
   });
 
   return result.cattle;
+}
+
+export type ApiMilkBatch = {
+  id: string;
+  batchId: string;
+  date: string;
+  volumeL: number;
+  status: string;
+  collectionCentre: { name: string; code: string };
+  contributingAnimals: {
+    cattle: {
+      cattleId: string;
+      name: string | null;
+      farmer: { user: { name: string } };
+    };
+  }[];
+  processingBatches: {
+    processingBatch: { batchId: string; factory: { name: string } };
+  }[];
+};
+
+export function fetchMilkBatches() {
+  return apiRequest<ApiMilkBatch[]>("/api/milk-batches");
+}
+
+export function createMilkBatch(input: { cattleIds: string[]; volumeL: number }) {
+  return apiRequest<{ milkBatch: ApiMilkBatch }>("/api/milk-batches", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export type FactoryIntakeBatch = {
+  id: string;
+  batchId: string;
+  date: string;
+  volumeL: number;
+  status: string;
+  collectionCentre: {
+    id: string;
+    name: string;
+    code: string;
+    village: string | null;
+  };
+  factoryReceipt: {
+    id: string;
+    receivedQuantityL: string;
+    receivedAt: string;
+    discrepancyNote: string | null;
+  } | null;
+  qualityInspections: {
+    id: string;
+    temperatureC: string;
+    fatPercent: string;
+    snfPercent: string;
+    acidityPercent: string;
+    adulterationResult: "PASS" | "FAIL" | "INCONCLUSIVE";
+    status: "ACCEPTED" | "ON_HOLD" | "REJECTED";
+    remarks: string | null;
+    inspectedAt: string;
+    inspector: { name: string };
+  }[];
+  processingBatches: { id: string }[];
+};
+
+export type FactoryDashboardData = {
+  metrics: {
+    batchesReceivedToday: number;
+    pendingInspections: number;
+    acceptedBatches: number;
+    heldBatches: number;
+    rejectedBatches: number;
+    receivedQuantityL: number;
+    acceptedQuantityL: number;
+    activeProductionRuns: number;
+    finishedInventoryL: number;
+    dispatchesToday: number;
+  };
+  recentActivity: {
+    id: string;
+    eventType: string;
+    entityType: string;
+    entityId: string;
+    payload: Record<string, unknown>;
+    createdAt: string;
+  }[];
+};
+
+export type FactoryProductionRun = {
+  id: string;
+  batchId: string;
+  date: string;
+  volumeL: number;
+  inputVolumeL: string | null;
+  outputVolumeL: string | null;
+  wastageL: string | null;
+  product: string;
+  packs: number;
+  status: string;
+  completedAt: string | null;
+  operator: { name: string } | null;
+  sourceMilkBatches: {
+    milkBatch: { id: string; batchId: string; factoryReceipt: { receivedQuantityL: string } | null };
+  }[];
+  productLots: { id: string; lotId: string; producedQuantityL: string }[];
+};
+
+export type FactoryProductLot = {
+  id: string;
+  lotId: string;
+  productName: string;
+  producedQuantityL: string;
+  currentQuantityL: string;
+  status: "AVAILABLE" | "HOLD" | "RECALLED" | "DEPLETED";
+  processingBatch: { batchId: string; product: string; date: string };
+  movements: {
+    id: string;
+    movementType: "PRODUCTION_OUTPUT" | "DISPATCH";
+    quantityL: string;
+    reference: string | null;
+    createdAt: string;
+  }[];
+};
+
+export type FactoryDispatch = {
+  id: string;
+  dispatchId: string;
+  destination: string;
+  dispatchedAt: string;
+  transportDetails: string | null;
+  status: "DISPATCHED" | "CANCELLED";
+  items: {
+    id: string;
+    quantityL: string;
+    productLot: { lotId: string; productName: string };
+  }[];
+  createdBy: { name: string };
+};
+
+export type FactoryReportData = {
+  receipts: {
+    id: string;
+    receivedQuantityL: string;
+    receivedAt: string;
+    milkBatch: {
+      batchId: string;
+      collectionCentre: { name: string; code: string };
+      qualityInspections: { status: string }[];
+    };
+  }[];
+  productionRuns: FactoryProductionRun[];
+  productLots: FactoryProductLot[];
+  dispatches: FactoryDispatch[];
+  inspections: {
+    id: string;
+    status: string;
+    temperatureC: string;
+    fatPercent: string;
+    snfPercent: string;
+    acidityPercent: string;
+    adulterationResult: string;
+    inspectedAt: string;
+    milkBatch: { batchId: string };
+    inspector: { name: string };
+  }[];
+};
+
+export type FactoryProductionCompletion = {
+  productionRun: FactoryProductionRun;
+  productLot: {
+    id: string;
+    lotId: string;
+    productName: string;
+    producedQuantityL: string;
+    currentQuantityL: string;
+  };
+};
+
+export function fetchFactoryDashboard() {
+  return apiRequest<FactoryDashboardData>("/api/factory/dashboard");
+}
+
+export function fetchFactoryIntake(params: { search?: string; status?: string } = {}) {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.status) query.set("status", params.status);
+  const suffix = query.size ? `?${query.toString()}` : "";
+  return apiRequest<FactoryIntakeBatch[]>(`/api/factory/intake${suffix}`);
+}
+
+export function receiveFactoryBatch(
+  id: string,
+  input: { receivedQuantityL: number; receivedAt?: string; discrepancyNote?: string },
+) {
+  return apiRequest(`/api/factory/intake/${encodeURIComponent(id)}/receive`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function inspectFactoryBatch(
+  id: string,
+  input: {
+    temperatureC: number;
+    fatPercent: number;
+    snfPercent: number;
+    acidityPercent: number;
+    adulterationResult: "PASS" | "FAIL" | "INCONCLUSIVE";
+    status: "ACCEPTED" | "ON_HOLD" | "REJECTED";
+    remarks?: string;
+  },
+) {
+  return apiRequest(`/api/factory/intake/${encodeURIComponent(id)}/inspect`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchFactoryProduction() {
+  return apiRequest<FactoryProductionRun[]>("/api/factory/production");
+}
+
+export function createFactoryProduction(input: {
+  product: string;
+  date: string;
+  milkBatchIds: string[];
+}) {
+  return apiRequest<{ productionRun: FactoryProductionRun }>("/api/factory/production", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function completeFactoryProduction(
+  id: string,
+  input: { outputVolumeL: number; wastageL: number },
+) {
+  return apiRequest<FactoryProductionCompletion>(`/api/factory/production/${encodeURIComponent(id)}/complete`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchFactoryInventory() {
+  return apiRequest<FactoryProductLot[]>("/api/factory/inventory");
+}
+
+export function fetchFactoryDispatches() {
+  return apiRequest<FactoryDispatch[]>("/api/factory/dispatch");
+}
+
+export function createFactoryDispatch(input: {
+  destination: string;
+  dispatchedAt?: string;
+  transportDetails?: string;
+  items: { lotId: string; quantityL: number }[];
+}) {
+  return apiRequest<{ dispatch: FactoryDispatch }>("/api/factory/dispatch", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchFactoryTrace(id: string) {
+  return apiRequest<{ type: string; record: Record<string, unknown> }>(
+    `/api/factory/trace/${encodeURIComponent(id)}`,
+  );
+}
+
+export function fetchFactoryReports(params: { from?: string; to?: string } = {}) {
+  const query = new URLSearchParams();
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  const suffix = query.size ? `?${query.toString()}` : "";
+  return apiRequest<FactoryReportData>(`/api/factory/reports${suffix}`);
 }

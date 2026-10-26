@@ -7,7 +7,7 @@ import { roleById } from "@/lib/roles";
 import type { RoleId } from "@/lib/residuguard-data";
 
 export function RoleGate({ role, children }: { role: RoleId; children: ReactNode }) {
-  const { role: current, hydrated } = useSession();
+  const { user, hydrated } = useSession();
   const def = roleById(role);
 
   if (!hydrated) {
@@ -18,7 +18,7 @@ export function RoleGate({ role, children }: { role: RoleId; children: ReactNode
     );
   }
 
-  if (current !== role) {
+  if (user?.role !== role) {
     return (
       <div className="grid min-h-screen place-items-center px-4">
         <div className="panel max-w-md p-8 text-center">
