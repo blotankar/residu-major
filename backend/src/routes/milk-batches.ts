@@ -1,6 +1,8 @@
+
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import type { AuthenticatedUser } from "../lib/auth-middleware";
+import { Prisma } from "../../generated/prisma/client";
 
 const createSchema = z.object({
   cattleIds: z.array(z.string().trim().min(1)).min(1).max(500),
@@ -12,6 +14,23 @@ function json(data: unknown, status = 200) {
   return Response.json(data, { status });
 }
 
+// Get the start and end of the selected date in Indian Standard Time.
+function getIndiaDayRange(date: Date) {
+  const indiaDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+
+  const startOfDay = new Date(`${indiaDate}T00:00:00+05:30`);
+  const startOfTomorrow = new Date(
+    startOfDay.getTime() + 24 * 60 * 60 * 1000,
+  );
+
+  return { startOfDay, startOfTomorrow };
+}
+
 export async function handleMilkBatchRequest(
   req: Request,
   user: AuthenticatedUser,
@@ -20,35 +39,53 @@ export async function handleMilkBatchRequest(
     const centre = await prisma.collectionCentre.findUnique({
       where: { userId: user.userId },
     });
+
     if (!centre) {
-      return json({ error: "No collection-centre profile is linked to this account." }, 403);
+      return json(
+        { error: "No collection-centre profile is linked to this account." },
+        403,
+      );
     }
 
+    // GET: Fetch batches belonging to this collection centre.
     if (req.method === "GET") {
       const batches = await prisma.milkBatch.findMany({
         where: { collectionCentreId: centre.id },
         include: {
-          collectionCentre: { select: { name: true, code: true } },
+          collectionCentre: {
+            select: { name: true, code: true },
+          },
           contributingAnimals: {
             include: {
               cattle: {
                 select: {
+                   id: true,
                   cattleId: true,
                   name: true,
-                  farmer: { include: { user: { select: { name: true } } } },
+                  farmer: {
+                    include: {
+                      user: { select: { name: true } },
+                    },
+                  },
                 },
               },
             },
           },
           processingBatches: {
             include: {
-              processingBatch: { select: { batchId: true, factory: { select: { name: true } } } },
+              processingBatch: {
+                select: {
+                  batchId: true,
+                  factory: { select: { name: true } },
+                },
+              },
             },
           },
         },
         orderBy: { date: "desc" },
         take: 500,
       });
+
       return json(batches);
     }
 
@@ -56,7 +93,9 @@ export async function handleMilkBatchRequest(
       return json({ error: "Method not allowed." }, 405);
     }
 
+    // Validate request body.
     const body = createSchema.safeParse(await req.json());
+
     if (!body.success) {
       return json(
         {
@@ -69,25 +108,75 @@ export async function handleMilkBatchRequest(
         400,
       );
     }
-    if (new Set(body.data.cattleIds).size !== body.data.cattleIds.length) {
-      return json({ error: "Each animal can only be included once." }, 400);
+
+    // Prevent duplicate cattle IDs in one request.
+    if (
+      new Set(body.data.cattleIds).size !== body.data.cattleIds.length
+    ) {
+      return json(
+        { error: "Each animal can only be included once." },
+        400,
+      );
     }
 
-    const batchDate = body.data.date ? new Date(body.data.date) : new Date();
+    const batchDate = body.data.date
+      ? new Date(body.data.date)
+      : new Date();
+
+    const { startOfDay, startOfTomorrow } =
+      getIndiaDayRange(batchDate);
+
+    // Fetch all requested cattle and their latest treatments.
     const cattle = await prisma.cattle.findMany({
-      where: { id: { in: body.data.cattleIds } },
+      where: {
+        id: {
+          in: body.data.cattleIds,
+        },
+      },
       include: {
-        treatments: { orderBy: { administeredAt: "desc" }, take: 1 },
+        treatments: {
+          orderBy: {
+            administeredAt: "desc",
+          },
+          take: 1,
+        },
       },
     });
+
+    // Check whether all requested cattle exist.
     if (cattle.length !== body.data.cattleIds.length) {
-      return json({ error: "One or more selected animals were not found." }, 404);
+      return json(
+        { error: "One or more selected animals were not found." },
+        404,
+      );
     }
 
+    // Verify that every cattle belongs to this collection centre.
+    const unauthorizedCattle = cattle.filter(
+      (animal) => animal.collectionCentreId !== centre.id,
+    );
+
+    if (unauthorizedCattle.length > 0) {
+      return json(
+        {
+          error:
+            "You cannot create a milk batch using cattle assigned to another collection centre or not assigned to your centre.",
+        },
+        403,
+      );
+    }
+
+    // Check the latest treatment withdrawal status.
     const heldAnimal = cattle.find((animal) => {
       const latest = animal.treatments[0];
-      return latest && (!latest.withdrawalEnds || latest.withdrawalEnds >= batchDate);
+
+      return (
+        latest &&
+        (!latest.withdrawalEnds ||
+          latest.withdrawalEnds >= batchDate)
+      );
     });
+
     if (heldAnimal) {
       return json(
         {
@@ -97,50 +186,152 @@ export async function handleMilkBatchRequest(
       );
     }
 
-    const batchId = `MB-${batchDate.toISOString().slice(0, 10).replace(/-/g, "")}-${crypto
+    // Generate a unique batch ID.
+    const batchId = `MB-${batchDate
+      .toISOString()
+      .slice(0, 10)
+      .replace(/-/g, "")}-${crypto
       .randomUUID()
       .slice(0, 8)
       .toUpperCase()}`;
-    const batch = await prisma.$transaction(async (tx) => {
-      const created = await tx.milkBatch.create({
-        data: {
-          batchId,
-          collectionCentreId: centre.id,
-          date: batchDate,
-          volumeL: body.data.volumeL,
-          status: "SAFE",
-          contributingAnimals: {
-            create: cattle.map((animal) => ({ cattleId: animal.id })),
+
+    // Create the batch only if none of the selected cattle
+    // have already contributed to a batch on this Indian calendar day.
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const existingIntakes = await tx.milkBatchAnimal.findMany({
+          where: {
+            cattleId: {
+              in: body.data.cattleIds,
+            },
+            milkBatch: {
+              collectionCentreId: centre.id,
+              date: {
+                gte: startOfDay,
+                lt: startOfTomorrow,
+              },
+            },
           },
-        },
-        include: {
-          contributingAnimals: { include: { cattle: { select: { cattleId: true } } } },
-        },
-      });
-      await tx.traceabilityEvent.create({
-        data: {
-          eventType: "MILK_BATCH_CREATED",
-          entityType: "milk_batch",
-          entityId: created.id,
-          payload: {
+          select: {
+            cattleId: true,
+          },
+        });
+
+        if (existingIntakes.length > 0) {
+          return {
+            conflict: existingIntakes.map(
+              (item) => item.cattleId,
+            ),
+          };
+        }
+
+        const created = await tx.milkBatch.create({
+          data: {
             batchId,
             collectionCentreId: centre.id,
+            date: batchDate,
             volumeL: body.data.volumeL,
-            contributingCattleIds: cattle.map((animal) => animal.cattleId),
+            status: "SAFE",
+            contributingAnimals: {
+              create: cattle.map((animal) => ({
+                cattleId: animal.id,
+              })),
+            },
           },
+          include: {
+            contributingAnimals: {
+              include: {
+                cattle: {
+                  select: {
+                    cattleId: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        await tx.traceabilityEvent.create({
+          data: {
+            eventType: "MILK_BATCH_CREATED",
+            entityType: "milk_batch",
+            entityId: created.id,
+            payload: {
+              batchId,
+              collectionCentreId: centre.id,
+              volumeL: body.data.volumeL,
+              contributingCattleIds: cattle.map(
+                (animal) => animal.cattleId,
+              ),
+            },
+          },
+        });
+
+        return { batch: created };
+      },
+      {
+        isolationLevel:
+          Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
+
+    // Return a conflict if any cattle were already used today.
+    if ("conflict" in result) {
+      return json(
+        {
+          error:
+            "Some selected cattle have already contributed to a milk batch today.",
+          cattleIds: result.conflict,
         },
-      });
-      return created;
-    });
-    return json({ milkBatch: batch }, 201);
+        409,
+      );
+    }
+
+    return json({ milkBatch: result.batch }, 201);
   } catch (error) {
     if (error instanceof SyntaxError) {
-      return json({ error: "Request body must be valid JSON." }, 400);
+      return json(
+        { error: "Request body must be valid JSON." },
+        400,
+      );
     }
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
-      return json({ error: "Could not create a unique milk batch ID. Please retry." }, 409);
+
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "P2002"
+    ) {
+      return json(
+        {
+          error:
+            "Could not create a unique milk batch ID. Please retry.",
+        },
+        409,
+      );
     }
+
+    // Serializable transaction conflict.
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "P2034"
+    ) {
+      return json(
+        {
+          error:
+            "Another intake operation occurred simultaneously. Please refresh and try again.",
+        },
+        409,
+      );
+    }
+
     console.error("Milk batch request failed:", error);
-    return json({ error: "Milk batch request failed." }, 500);
+
+    return json(
+      { error: "Milk batch request failed." },
+      500,
+    );
   }
 }

@@ -48,6 +48,20 @@ export async function handleCollectionCentreFarmerRequest(
 
     const url = new URL(req.url);
 
+    // GET: COLLECTION CENTRE PROFILE
+if (
+  req.method === "GET" &&
+  url.pathname === "/api/collection-centre/profile"
+) {
+  return json({
+    id: centre.id,
+    name: centre.name,
+    code: centre.code,
+    village: null,
+    phone: null,
+  });
+}
+
     // ==========================================
     // GET: SEARCH FARMERS BY ID OR NAME
     // Returns all registered cattle belonging

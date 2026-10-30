@@ -125,9 +125,11 @@ model CollectionCentre {
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   milkBatches MilkBatch[]
+  cattle      Cattle[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  collectionCentreCattles CollectionCentreCattle[]
 
   @@map("collection_centres")
 }
@@ -176,13 +178,18 @@ model Cattle {
   farmerId String
   farmer   Farmer @relation(fields: [farmerId], references: [id])
 
+  collectionCentreId String?
+  collectionCentre   CollectionCentre? @relation(fields: [collectionCentreId], references: [id])
+
   treatments       Treatment[]
   milkBatchAnimals MilkBatchAnimal[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  collectionCentreCattle CollectionCentreCattle?
 
   @@unique([farmerId, cattleId])
+  @@index([collectionCentreId])
   @@map("Cattle")
 }
 
@@ -192,6 +199,7 @@ model Treatment {
   veterinarianId String
 
   medicineName   String
+  medicineMrlId  String?
   dosage         String?
   administeredAt DateTime
   withdrawalEnds DateTime?
@@ -199,6 +207,7 @@ model Treatment {
 
   cattle       Cattle       @relation(fields: [cattleId], references: [id])
   veterinarian Veterinarian @relation(fields: [veterinarianId], references: [id])
+  medicineMrl  MedicineMRL? @relation(fields: [medicineMrlId], references: [id])
 
   createdAt DateTime @default(now())
 
@@ -424,4 +433,38 @@ model TraceabilityEvent {
   @@index([entityType, entityId])
   @@index([eventType])
   @@map("traceability_events")
+}
+
+model MedicineMRL {
+  id                 String  @id @default(uuid())
+  medicineName       String  @unique
+  activeIngredient   String?
+  mrlValue           Float?
+  unit               String?
+  sourceTitle        String?
+  sourceUrl          String?
+  regulatoryStatus   String?
+  unitVerification   String?
+  isDashboardEnabled Boolean @default(true)
+
+  treatments Treatment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("medicine_mrls")
+}
+
+model CollectionCentreCattle {
+  id                 String @id @default(uuid())
+  collectionCentreId String
+  cattleId           String @unique
+
+  collectionCentre CollectionCentre @relation(fields: [collectionCentreId], references: [id], onDelete: Cascade)
+  cattle           Cattle           @relation(fields: [cattleId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([collectionCentreId])
+  @@map("collection_centre_cattle")
 }

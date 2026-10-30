@@ -24,6 +24,94 @@ export type ApiCattle = {
   }[];
 };
 
+export type ApiMedicineMRL = {
+  id: string;
+  medicineName: string;
+  activeIngredient: string | null;
+  mrlValue: number | string | null;
+  unit: string | null;
+  sourceTitle: string | null;
+  sourceUrl: string | null;
+  regulatoryStatus: string | null;
+  unitVerification: string | null;
+  isDashboardEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VetCattle = {
+  id: string;
+  cattleId: string;
+  name: string | null;
+  breed: string | null;
+  sex: string | null;
+  dateOfBirth?: string | null;
+  farmer: {
+    village: string | null;
+    user: {
+      name: string;
+    };
+  };
+  treatments: {
+    id: string;
+    medicineName: string;
+    dosage: string | null;
+    administeredAt: string;
+    withdrawalEnds: string | null;
+    reason: string | null;
+  }[];
+};
+
+export type ApiTreatment = {
+  id: string;
+  cattleId: string;
+  medicineName: string;
+  dosage: string | null;
+  administeredAt: string;
+  withdrawalEnds: string | null;
+  reason: string | null;
+  cattle?: {
+    cattleId: string;
+  } | null;
+  medicineMrl?: {
+    id: string;
+    medicineName: string;
+    mrlValue: number | string | null;
+    unit: string | null;
+  } | null;
+};
+
+export type CollectionCentreProfile = {
+  id: string;
+  name: string;
+  code: string;
+  village: string | null;
+  phone: string | null;
+};
+
+export type CollectionCentreFarmer = {
+  id: string;
+  name: string;
+  village: string;
+  phone: string | null;
+  cattle: {
+    id: string;
+    cattleId: string;
+    name: string | null;
+    assignedToThisCentre: boolean;
+    assignedToAnotherCentre: boolean;
+  }[];
+};
+
+export type CreateTreatmentInput = {
+  cattleId: string;
+  medicineName: string;
+  dosage: string;
+  administeredAt: string;
+  withdrawalEnds: string | null;
+  reason: string;
+};
+
 function getAuthToken(): string {
   if (typeof window === "undefined") {
     throw new Error("Authentication is only available in the browser.");
@@ -52,6 +140,31 @@ function getAuthToken(): string {
 
     throw error;
   }
+}
+
+// Fetch the logged-in collection centre's profile
+export function fetchCollectionCentreProfile() {
+  return apiRequest<CollectionCentreProfile>(
+    "/api/collection-centre/profile",
+  );
+}
+
+// Search farmers by Farmer ID or farmer name
+export function searchCentreFarmers(search: string) {
+  return apiRequest<CollectionCentreFarmer[]>(
+    `/api/collection-centre/farmers/search?search=${encodeURIComponent(search)}`,
+  );
+}
+
+// Assign selected cattle to the logged-in collection centre
+export function assignCattleToCentre(cattleIds: string[]) {
+  return apiRequest<{ message: string; assignedCount: number }>(
+    "/api/collection-centre/cattle/assign",
+    {
+      method: "POST",
+      body: JSON.stringify({ cattleIds }),
+    },
+  );
 }
 
 async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -109,6 +222,7 @@ export type ApiMilkBatch = {
   collectionCentre: { name: string; code: string };
   contributingAnimals: {
     cattle: {
+      id: string;
       cattleId: string;
       name: string | null;
       farmer: { user: { name: string } };
@@ -125,6 +239,29 @@ export function fetchMilkBatches() {
 
 export function createMilkBatch(input: { cattleIds: string[]; volumeL: number }) {
   return apiRequest<{ milkBatch: ApiMilkBatch }>("/api/milk-batches", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchMedicineMRL() {
+  return apiRequest<ApiMedicineMRL[]>("/api/mrl");
+}
+
+export function fetchMrlReferences() {
+  return apiRequest<ApiMedicineMRL[]>("/api/mrl");
+}
+
+export function fetchVetCattle() {
+  return apiRequest<VetCattle[]>("/api/vet/cattle");
+}
+
+export function fetchVetTreatments() {
+  return apiRequest<ApiTreatment[]>("/api/vet/treatments");
+}
+
+export function createTreatment(input: CreateTreatmentInput) {
+  return apiRequest<{ treatment: ApiTreatment }>("/api/vet/treatments", {
     method: "POST",
     body: JSON.stringify(input),
   });

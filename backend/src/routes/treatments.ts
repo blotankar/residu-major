@@ -20,6 +20,12 @@ export async function handleTreatmentRequest(
   user: AuthenticatedUser,
 ): Promise<Response> {
   if (req.method === "GET") {
+    if (user.role !== "veterinarian") {
+    return json(
+      { error: "Only veterinarians can view treatment records." },
+      403,
+    );
+  }
     try {
       const treatments = await prisma.treatment.findMany({
         include: {

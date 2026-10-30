@@ -1,8 +1,15 @@
+
 import { getCattle, createCattle } from "./routes/cattle";
 import { login, register } from "./routes/auth";
 import { handleFactoryRequest } from "./routes/factory";
 import { handleMilkBatchRequest } from "./routes/milk-batches";
-import { authenticateRequest, requireRoles } from "./lib/auth-middleware";
+import { handleMrlRequest } from "./routes/mrl";
+import { handleTreatmentRequest } from "./routes/treatments";
+import { handleCollectionCentreFarmerRequest } from "./routes/collection-centre-farmers";
+import {
+  authenticateRequest,
+  requireRoles,
+} from "./lib/auth-middleware";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +24,7 @@ const server = Bun.serve({
     const url = new URL(req.url);
     const path = url.pathname;
 
+    // Handle CORS preflight requests.
     if (req.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -24,31 +32,43 @@ const server = Bun.serve({
       });
     }
 
-    // Public authentication endpoints.
+    // ---------------- AUTHENTICATION ----------------
+
+    // Register
     if (req.method === "POST" && path === "/api/auth/register") {
       const response = await register(req);
+
       Object.entries(corsHeaders).forEach(([key, value]) => {
         response.headers.set(key, value);
       });
+
       return response;
     }
 
+    // Login
     if (req.method === "POST" && path === "/api/auth/login") {
       const response = await login(req);
+
       Object.entries(corsHeaders).forEach(([key, value]) => {
         response.headers.set(key, value);
       });
+
       return response;
     }
 
-    // All cattle endpoints below require a valid JWT.
-    if ((req.method === "GET" || req.method === "POST") && path === "/api/cattle") {
+    // ---------------- CATTLE ----------------
+
+    if (
+      (req.method === "GET" || req.method === "POST") &&
+      path === "/api/cattle"
+    ) {
       const user = authenticateRequest(req);
 
       if (user instanceof Response) {
         return user;
       }
 
+      // Fetch cattle
       if (req.method === "GET") {
         const permission = requireRoles(user, [
           "farmer",
@@ -72,11 +92,15 @@ const server = Bun.serve({
 
           return Response.json(
             { error: "Failed to fetch cattle." },
-            { status: 500, headers: corsHeaders },
+            {
+              status: 500,
+              headers: corsHeaders,
+            },
           );
         }
       }
 
+      // Create cattle
       if (req.method === "POST") {
         const permission = requireRoles(user, ["farmer"]);
 
@@ -84,40 +108,182 @@ const server = Bun.serve({
           return permission;
         }
 
-        return createCattle(req, user);
+        const response = await createCattle(req, user);
+
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+          response.headers.set(key, value);
+        });
+
+        return response;
       }
     }
 
-    if (path === "/api/milk-batches" && (req.method === "GET" || req.method === "POST")) {
+    // ---------------- VETERINARIAN CATTLE ----------------
+
+    if (path === "/api/vet/cattle" && req.method === "GET") {
       const user = authenticateRequest(req);
-      if (user instanceof Response) return user;
 
-      const permission = requireRoles(user, ["collection_centre"]);
-      if (permission) return permission;
+      if (user instanceof Response) {
+        return user;
+      }
 
-      const response = await handleMilkBatchRequest(req, user);
+      const permission = requireRoles(user, ["veterinarian"]);
+
+      if (permission) {
+        return permission;
+      }
+
+      try {
+        const cattle = await getCattle(user);
+
+        return Response.json(cattle, {
+          headers: corsHeaders,
+        });
+      } catch (error) {
+        console.error("Failed to fetch veterinarian cattle:", error);
+
+        return Response.json(
+          { error: "Failed to fetch cattle." },
+          {
+            status: 500,
+            headers: corsHeaders,
+          },
+        );
+      }
+    }
+
+    // ---------------- MEDICINE MRL REFERENCES ----------------
+
+    if (path === "/api/mrl" && req.method === "GET") {
+      const user = authenticateRequest(req);
+
+      if (user instanceof Response) {
+        return user;
+      }
+
+      const response = await handleMrlRequest(req, user);
+
       Object.entries(corsHeaders).forEach(([key, value]) => {
         response.headers.set(key, value);
       });
+
       return response;
     }
+
+    // ---------------- VETERINARIAN TREATMENTS ----------------
+
+    if (
+      path === "/api/vet/treatments" &&
+      (req.method === "GET" || req.method === "POST")
+    ) {
+      const user = authenticateRequest(req);
+
+      if (user instanceof Response) {
+        return user;
+      }
+
+      const permission = requireRoles(user, ["veterinarian"]);
+
+      if (permission) {
+        return permission;
+      }
+
+      const response = await handleTreatmentRequest(req, user);
+
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+
+      return response;
+    }
+
+    // ---------------- MILK BATCHES ----------------
+
+    if (
+      path === "/api/milk-batches" &&
+      (req.method === "GET" || req.method === "POST")
+    ) {
+      const user = authenticateRequest(req);
+
+      if (user instanceof Response) {
+        return user;
+      }
+
+      const permission = requireRoles(user, ["collection_centre"]);
+
+      if (permission) {
+        return permission;
+      }
+
+      const response = await handleMilkBatchRequest(req, user);
+
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+
+      return response;
+    }
+
+    // ---------------- FACTORY ----------------
 
     if (path.startsWith("/api/factory/")) {
       const user = authenticateRequest(req);
-      if (user instanceof Response) return user;
+
+      if (user instanceof Response) {
+        return user;
+      }
 
       const permission = requireRoles(user, ["factory"]);
-      if (permission) return permission;
+
+      if (permission) {
+        return permission;
+      }
 
       const response = await handleFactoryRequest(req, user);
+
       Object.entries(corsHeaders).forEach(([key, value]) => {
         response.headers.set(key, value);
       });
+
       return response;
     }
 
-    return Response.json({ error: "Route not found." }, { status: 404, headers: corsHeaders });
+    // ---------------- COLLECTION CENTRE FARMER & CATTLE ----------------
+
+if (path.startsWith("/api/collection-centre/")) {
+  const user = authenticateRequest(req);
+
+  if (user instanceof Response) {
+    return user;
+  }
+
+  const permission = requireRoles(user, ["collection_centre"]);
+
+  if (permission) {
+    return permission;
+  }
+
+  const response = await handleCollectionCentreFarmerRequest(req, user);
+
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+
+  return response;
+}
+
+    // ---------------- UNKNOWN ROUTE ----------------
+
+    return Response.json(
+      { error: "Route not found." },
+      {
+        status: 404,
+        headers: corsHeaders,
+      },
+    );
   },
 });
 
-console.log(`🚀 ResiduGuard backend running at http://localhost:${server.port}`);
+console.log(
+  `🚀 ResiduGuard backend running at http://localhost:${server.port}`,
+);

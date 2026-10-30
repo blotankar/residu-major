@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma";
 import type { AuthenticatedUser } from "../lib/auth-middleware";
+import { Prisma } from "../../generated/prisma/client";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,20 +16,73 @@ function json(data: unknown, status = 200): Response {
 }
 
 export async function getCattle(user: AuthenticatedUser) {
-  const where = user.role === "farmer" ? { farmer: { userId: user.userId } } : {};
+  let where: Prisma.CattleWhereInput;
 
-  return prisma.cattle.findMany({
+  if (user.role === "farmer") {
+    // Farmers see only their own cattle.
+    where = {
+      farmer: {
+        userId: user.userId,
+      },
+    };
+  } else if (user.role === "collection_centre") {
+    // Find the logged-in collection centre.
+    const centre = await prisma.collectionCentre.findUnique({
+      where: {
+        userId: user.userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    // Never return all cattle if the centre profile is missing.
+    if (!centre) {
+      return [];
+    }
+
+    // Show ONLY cattle assigned to this collection centre.
+    where = {
+      collectionCentreId: centre.id,
+    };
+  } else if (
+    user.role === "veterinarian" ||
+    user.role === "authority"
+  ) {
+    // These roles retain their existing broader access.
+    where = {};
+  } else {
+    // Unknown roles must never receive all cattle.
+    return [];
+  }
+
+  const cattle = await prisma.cattle.findMany({
     where,
     include: {
       farmer: {
-        include: {
-          user: true,
+        select: {
+          id: true,
+          village: true,
+          phone: true,
+          user: {
+            select: {
+              name: true,
+            },
+          },
         },
       },
-      treatments: { orderBy: { administeredAt: "desc" } },
+      treatments: {
+        orderBy: {
+          administeredAt: "desc",
+        },
+      },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: {
+      createdAt: "desc",
+    },
   });
+
+  return cattle;
 }
 
 export async function createCattle(req: Request, user: AuthenticatedUser): Promise<Response> {
