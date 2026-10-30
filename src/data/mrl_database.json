@@ -1,0 +1,110 @@
+{
+  "dataset_name": "ResiduGuard Milk Residue MRL Reference Data",
+  "version": "0.2.0",
+  "matrix": "cow_milk",
+  "purpose": "Initial dashboard reference for medicines with residue measurements in the reviewed research papers.",
+  "notice": "Research-paper reference values only. The uploaded FSSAI Compendium of Contaminants Regulations (2022) does not establish the medicine-specific antibiotic MRLs listed here. Indian regulatory applicability has not been verified. Do not use these values alone to decide whether milk is legally compliant or safe.",
+  "india_source_review": {
+    "document": "Compendium of Contaminants Regulations, Version VI, 27 January 2022",
+    "scope_observed": "Contaminants and pesticide/insecticide residues in the reviewed sections",
+    "antibiotic_mrls_for_selected_medicines_found": false,
+    "status": "No applicable Indian antibiotic MRL confirmed from this uploaded document."
+  },
+  "dashboard_policy": {
+    "show_research_reference_mrl": true,
+    "label": "Research reference MRL — Indian regulatory status unverified",
+    "allow_compliance_decision_from_this_value_alone": false,
+    "if_indian_legal_limit_not_verified": "Display reference information only; show regulatory status as pending verification."
+  },
+  "medicines": [
+    {
+      "id": "gentamicin",
+      "medicine_name": "Gentamicin",
+      "research_reference_mrl": {
+        "value": 0.2,
+        "unit": "mg/kg",
+        "equivalent_value": 200,
+        "equivalent_unit": "µg/kg"
+      },
+      "source_title": "Residue depletion study and withdrawal period in milk for intramuscular gentamicin in dairy cows using LC-MS/MS",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12703910/",
+      "source_note": "The paper states a milk MRL of 0.2 mg/kg.",
+      "india_regulatory_status": "not_verified_from_uploaded_document",
+      "dashboard_enabled": true
+    },
+    {
+      "id": "oxytetracycline",
+      "medicine_name": "Oxytetracycline",
+      "research_reference_mrl": {
+        "value": 100,
+        "unit": "µg/kg"
+      },
+      "source_title": "Determination of Multi-Class Antimicrobial Residues and Antimicrobial Resistance in Cow Milk and Feces Samples during Withdrawal Period",
+      "source_url": "https://www.mdpi.com/2076-2615/13/23/3603",
+      "source_note": "Research-paper reference value; verify the original table and applicable jurisdiction before regulatory use.",
+      "india_regulatory_status": "not_verified_from_uploaded_document",
+      "dashboard_enabled": true
+    },
+    {
+      "id": "enrofloxacin",
+      "medicine_name": "Enrofloxacin",
+      "research_reference_mrl": {
+        "value": 100,
+        "unit": "µg/kg"
+      },
+      "source_title": "Determination of Multi-Class Antimicrobial Residues and Antimicrobial Resistance in Cow Milk and Feces Samples during Withdrawal Period",
+      "source_url": "https://www.mdpi.com/2076-2615/13/23/3603",
+      "source_note": "Research-paper reference value; verify the original table and applicable jurisdiction before regulatory use.",
+      "india_regulatory_status": "not_verified_from_uploaded_document",
+      "dashboard_enabled": true
+    },
+    {
+      "id": "trimethoprim",
+      "medicine_name": "Trimethoprim",
+      "research_reference_mrl": {
+        "value": 50,
+        "unit": "µg/kg"
+      },
+      "source_title": "Determination of Multi-Class Antimicrobial Residues and Antimicrobial Resistance in Cow Milk and Feces Samples during Withdrawal Period",
+      "source_url": "https://www.mdpi.com/2076-2615/13/23/3603",
+      "source_note": "Research-paper reference value; verify the original table and applicable jurisdiction before regulatory use.",
+      "india_regulatory_status": "not_verified_from_uploaded_document",
+      "dashboard_enabled": true
+    },
+    {
+      "id": "amoxicillin",
+      "medicine_name": "Amoxicillin",
+      "research_reference_mrl": {
+        "value": 4,
+        "unit": "µg/kg",
+        "unit_verification": "required"
+      },
+      "source_title": "Determination of Multi-Class Antimicrobial Residues and Antimicrobial Resistance in Cow Milk and Feces Samples during Withdrawal Period",
+      "source_url": "https://www.mdpi.com/2076-2615/13/23/3603",
+      "source_note": "The article's table and narrative use potentially inconsistent concentration units. Treat the numerical value and unit as provisional until checked against the original table and applicable standard.",
+      "india_regulatory_status": "not_verified_from_uploaded_document",
+      "dashboard_enabled": true
+    },
+    {
+      "id": "procaine-benzylpenicillin",
+      "medicine_name": "Procaine benzylpenicillin",
+      "research_reference_mrl": {
+        "value": 4,
+        "unit": "µg/kg",
+        "unit_verification": "required"
+      },
+      "source_title": "Determination of Multi-Class Antimicrobial Residues and Antimicrobial Resistance in Cow Milk and Feces Samples during Withdrawal Period",
+      "source_url": "https://www.mdpi.com/2076-2615/13/23/3603",
+      "source_note": "The article's table and narrative use potentially inconsistent concentration units. Treat the numerical value and unit as provisional until checked against the original table and applicable standard.",
+      "india_regulatory_status": "not_verified_from_uploaded_document",
+      "dashboard_enabled": true
+    }
+  ],
+  "excluded_for_now": [
+    {
+      "medicine_name": "Ciprofloxacin",
+      "reason": "The reviewed paper did not establish a numerical milk MRL in the material reviewed.",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6882713/"
+    }
+  ]
+}
