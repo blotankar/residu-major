@@ -1,7 +1,4 @@
-
-import {
-  createFileRoute,
-} from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   useCallback,
   useEffect,
@@ -51,11 +48,9 @@ import {
   fetchFactoryTrace,
   inspectFactoryBatch,
   receiveFactoryBatch,
-
   searchFactoryCollectionCentres,
   fetchFactoryCentreBatches,
   addFactoryIntakeBatches,
-
   type FactoryCollectionCentre,
   type FactoryCentreMilkBatch,
   type FactoryDashboardData,
@@ -137,16 +132,6 @@ function todayInput() {
     .slice(0, 10);
 }
 
-function localDateTimeInput() {
-  const now = new Date();
-
-  return new Date(
-    now.getTime() - now.getTimezoneOffset() * 60_000,
-  )
-    .toISOString()
-    .slice(0, 16);
-}
-
 function latestInspection(batch: FactoryIntakeBatch) {
   return batch.qualityInspections[0];
 }
@@ -197,11 +182,6 @@ function FactoryDashboard() {
     fatPercent: "",
     snfPercent: "",
     acidityPercent: "",
-    adulterationResult: "INCONCLUSIVE" as
-      | "PASS"
-      | "FAIL"
-      | "INCONCLUSIVE",
-    status: "ON_HOLD" as "ACCEPTED" | "ON_HOLD" | "REJECTED",
     remarks: "",
   });
 
@@ -373,12 +353,10 @@ function FactoryDashboard() {
 
       setSelectedMilkBatchIds([]);
 
-      // Refresh the centre's available batches
       if (selectedCentre) {
         await selectCentre(selectedCentre);
       }
 
-      // Refresh factory intake list
       await reload();
     } catch (err) {
       toast.error(
@@ -430,7 +408,7 @@ function FactoryDashboard() {
     return (
       Boolean(batch.factoryReceipt) &&
       inspectionResult?.status === "ACCEPTED" &&
-      inspectionResult.adulterationResult === "PASS" &&
+      inspectionResult.qualityResult === "PASS" &&
       batch.processingBatches.length === 0
     );
   });
@@ -491,16 +469,34 @@ function FactoryDashboard() {
   async function submitInspection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!inspectionBatchId) return;
+    if (!inspectionBatchId) {
+      toast.error("Select a received batch.");
+      return;
+    }
+
+    const values = [
+      inspection.temperatureC,
+      inspection.fatPercent,
+      inspection.snfPercent,
+      inspection.acidityPercent,
+    ];
+
+    if (values.some((value) => value.trim() === "")) {
+      toast.error("Enter all four quality measurements.");
+      return;
+    }
+
+    if (values.some((value) => !Number.isFinite(Number(value)))) {
+      toast.error("Enter valid numeric measurements.");
+      return;
+    }
 
     try {
-      await inspectFactoryBatch(inspectionBatchId, {
+      const result = await inspectFactoryBatch(inspectionBatchId, {
         temperatureC: Number(inspection.temperatureC),
         fatPercent: Number(inspection.fatPercent),
         snfPercent: Number(inspection.snfPercent),
         acidityPercent: Number(inspection.acidityPercent),
-        adulterationResult: inspection.adulterationResult,
-        status: inspection.status,
         ...(inspection.remarks.trim()
           ? { remarks: inspection.remarks.trim() }
           : {}),
@@ -513,14 +509,16 @@ function FactoryDashboard() {
         fatPercent: "",
         snfPercent: "",
         acidityPercent: "",
-        adulterationResult: "INCONCLUSIVE",
-        status: "ON_HOLD",
         remarks: "",
       });
 
       setInspectionBatchId("");
 
-      toast.success("Inspection recorded");
+      const decision = result.decision;
+
+      toast.success(
+        `Inspection completed: ${decision.status} (${decision.qualityResult})`,
+      );
     } catch (err) {
       toast.error(
         err instanceof Error
@@ -883,9 +881,6 @@ function FactoryDashboard() {
           {/* ========================================== */}
 
           <TabsContent value="intake" className="mt-5 space-y-5">
-
-            {/* Search collection centre and add batches */}
-
             <section className="panel space-y-5 p-5">
               <div>
                 <h2 className="text-lg font-semibold">
@@ -922,8 +917,6 @@ function FactoryDashboard() {
                 </Button>
               </form>
 
-              {/* Collection centre search results */}
-
               {centreResults.length > 0 && !selectedCentre ? (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold">
@@ -957,8 +950,6 @@ function FactoryDashboard() {
                   ))}
                 </div>
               ) : null}
-
-              {/* Selected centre */}
 
               {selectedCentre ? (
                 <div className="space-y-4">
@@ -1105,8 +1096,6 @@ function FactoryDashboard() {
                 </div>
               ) : null}
             </section>
-
-            {/* Existing factory intake list */}
 
             <section className="panel p-5">
               <div className="mb-4">
@@ -1294,9 +1283,10 @@ function FactoryDashboard() {
                   Record quality inspection
                 </h2>
 
-                <p className="text-sm text-muted-foreground">
-                  Enter measured values and the inspector’s test outcome.
-                  This system does not supply or infer regulatory thresholds.
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Enter the four measured milk quality parameters.
+                  ResiduGuard automatically calculates the quality result
+                  and inspection outcome.
                 </p>
               </div>
 
@@ -1323,6 +1313,7 @@ function FactoryDashboard() {
 
               <NumericField
                 label="Temperature (°C)"
+                min="0"
                 value={inspection.temperatureC}
                 onChange={(value) =>
                   setInspection((current) => ({
@@ -1368,45 +1359,6 @@ function FactoryDashboard() {
                 }
               />
 
-              <label className="space-y-1 text-sm font-medium">
-                Adulteration test result
-
-                <select
-                  value={inspection.adulterationResult}
-                  onChange={(event) =>
-                    setInspection((current) => ({
-                      ...current,
-                      adulterationResult: event.target.value as
-                        typeof current.adulterationResult,
-                    }))
-                  }
-                  className="h-9 w-full rounded-md border border-input bg-background px-3"
-                >
-                  <option value="PASS">Pass</option>
-                  <option value="FAIL">Fail</option>
-                  <option value="INCONCLUSIVE">Inconclusive</option>
-                </select>
-              </label>
-
-              <label className="space-y-1 text-sm font-medium">
-                Inspection outcome
-
-                <select
-                  value={inspection.status}
-                  onChange={(event) =>
-                    setInspection((current) => ({
-                      ...current,
-                      status: event.target.value as typeof current.status,
-                    }))
-                  }
-                  className="h-9 w-full rounded-md border border-input bg-background px-3"
-                >
-                  <option value="ACCEPTED">Accepted</option>
-                  <option value="ON_HOLD">On hold</option>
-                  <option value="REJECTED">Rejected</option>
-                </select>
-              </label>
-
               <label className="space-y-1 text-sm font-medium md:col-span-2">
                 Remarks
 
@@ -1420,9 +1372,66 @@ function FactoryDashboard() {
                   }
                   maxLength={2000}
                   rows={3}
+                  placeholder="Optional inspection remarks"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 font-normal"
                 />
               </label>
+
+              <div className="rounded-lg border border-border bg-muted/30 p-4 md:col-span-2">
+                <h3 className="font-semibold">
+                  Automatic quality evaluation criteria
+                </h3>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-md bg-background p-3">
+                    <p className="text-sm font-medium">Fat</p>
+                    <p className="text-sm text-muted-foreground">
+                      Minimum 3.2%
+                    </p>
+                  </div>
+
+                  <div className="rounded-md bg-background p-3">
+                    <p className="text-sm font-medium">SNF</p>
+                    <p className="text-sm text-muted-foreground">
+                      Minimum 8.3%
+                    </p>
+                  </div>
+
+                  <div className="rounded-md bg-background p-3">
+                    <p className="text-sm font-medium">Temperature</p>
+                    <p className="text-sm text-muted-foreground">
+                      Accepted: up to 7°C
+                      <br />
+                      On hold: above 7°C to 10°C
+                      <br />
+                      Rejected: above 10°C
+                    </p>
+                  </div>
+
+                  <div className="rounded-md bg-background p-3">
+                    <p className="text-sm font-medium">Acidity</p>
+                    <p className="text-sm text-muted-foreground">
+                      Accepted: up to 0.14%
+                      <br />
+                      On hold: above 0.14% to 0.16%
+                      <br />
+                      Rejected: above 0.16%
+                    </p>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-xs text-muted-foreground">
+                  If any parameter fails its limit, the batch is REJECTED.
+                  If no parameter fails but at least one is borderline, the
+                  batch is ON HOLD. Otherwise, it is ACCEPTED.
+                </p>
+
+                <p className="mt-2 text-xs text-muted-foreground">
+                  These four measurements evaluate basic milk quality.
+                  They do not independently detect antibiotic residues or
+                  every possible adulterant.
+                </p>
+              </div>
 
               <div className="md:col-span-2">
                 <Button
@@ -1453,7 +1462,7 @@ function FactoryDashboard() {
                         <TableHead>Fat %</TableHead>
                         <TableHead>SNF %</TableHead>
                         <TableHead>Acidity %</TableHead>
-                        <TableHead>Adulteration</TableHead>
+                        <TableHead>Quality result</TableHead>
                         <TableHead>Outcome</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1476,9 +1485,7 @@ function FactoryDashboard() {
                           <TableCell>{item.acidityPercent}</TableCell>
 
                           <TableCell>
-                            <StatusBadge
-                              status={item.adulterationResult}
-                            />
+                            <StatusBadge status={item.qualityResult} />
                           </TableCell>
 
                           <TableCell>
@@ -1508,9 +1515,9 @@ function FactoryDashboard() {
                 </h2>
 
                 <p className="text-sm text-muted-foreground">
-                  Only received batches whose latest inspection is
-                  accepted and has a passing adulteration test can be
-                  allocated.
+                  Only received batches whose latest automatic quality
+                  inspection is ACCEPTED and has a PASS quality result can
+                  be allocated.
                 </p>
               </div>
 

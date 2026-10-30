@@ -281,7 +281,8 @@ model MilkQualityInspection {
   fatPercent         Decimal                 @db.Decimal(7, 3)
   snfPercent         Decimal                 @db.Decimal(7, 3)
   acidityPercent     Decimal                 @db.Decimal(7, 3)
-  adulterationResult QualityTestResult
+
+  qualityResult QualityTestResult @map("adulterationResult")
   status             QualityInspectionStatus
   remarks            String?
   inspectedAt        DateTime                @default(now())

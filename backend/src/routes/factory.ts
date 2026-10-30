@@ -47,11 +47,69 @@ const inspectionSchema = z.object({
   fatPercent: qualityMeasurement.nonnegative(),
   snfPercent: qualityMeasurement.nonnegative(),
   acidityPercent: qualityMeasurement.nonnegative(),
-  adulterationResult: z.enum(["PASS", "FAIL", "INCONCLUSIVE"]),
-  status: z.enum(["ACCEPTED", "ON_HOLD", "REJECTED"]),
   remarks: z.string().trim().max(2000).optional(),
   inspectedAt: z.string().datetime().optional(),
 });
+
+type QualityDecision = {
+  qualityResult: "PASS" | "FAIL" | "INCONCLUSIVE";
+  status: "ACCEPTED" | "ON_HOLD" | "REJECTED";
+  reasons: string[];
+};
+
+function calculateMilkQuality(data: {
+  fatPercent: number;
+  snfPercent: number;
+  temperatureC: number;
+  acidityPercent: number;
+}): QualityDecision {
+  const rejected: string[] = [];
+  const onHold: string[] = [];
+
+  if (data.fatPercent < 3.2) {
+    rejected.push("Fat is below the minimum of 3.2%.");
+  }
+
+  if (data.snfPercent < 8.3) {
+    rejected.push("SNF is below the minimum of 8.3%.");
+  }
+
+  if (data.temperatureC > 10) {
+    rejected.push("Temperature exceeds 10°C.");
+  } else if (data.temperatureC > 7) {
+    onHold.push("Temperature is in the borderline range (above 7°C to 10°C).");
+  }
+
+  if (data.acidityPercent > 0.16) {
+    rejected.push("Acidity exceeds 0.16%.");
+  } else if (data.acidityPercent > 0.14) {
+    onHold.push("Acidity is in the borderline range (above 0.14% to 0.16%).");
+  }
+
+  if (rejected.length > 0) {
+    return {
+      qualityResult: "FAIL",
+      status: "REJECTED",
+      reasons: rejected,
+    };
+  }
+
+  if (onHold.length > 0) {
+    return {
+      qualityResult: "INCONCLUSIVE",
+      status: "ON_HOLD",
+      reasons: onHold,
+    };
+  }
+
+  return {
+    qualityResult: "PASS",
+    status: "ACCEPTED",
+    reasons: [
+      "All four milk quality parameters meet the configured criteria.",
+    ],
+  };
+}
 
 const productionSchema = z.object({
   product: nonEmptyString.max(200),
@@ -713,53 +771,118 @@ async function inspectBatch(
   batchId: string,
 ) {
   const body = inspectionSchema.safeParse(await parseJson(req));
-  if (!body.success) return validationError(body.error);
-  if (body.data.status === "ACCEPTED" && body.data.adulterationResult !== "PASS") {
+
+  if (!body.success) {
+    return validationError(body.error);
+  }
+
+  // Automatically calculate quality result and inspection status
+  const qualityDecision = calculateMilkQuality(body.data);
+
+  // Check whether the batch has been received by this factory
+  const receipt = await prisma.factoryMilkBatchReceipt.findFirst({
+    where: {
+      milkBatchId: batchId,
+      factoryId: factory.id,
+    },
+    include: {
+      milkBatch: {
+        include: {
+          processingBatches: true,
+        },
+      },
+    },
+  });
+
+  if (!receipt) {
     return json(
-      { error: "A batch can only be accepted when the adulteration test passes." },
-      400,
+      { error: "Receive this batch before inspection." },
+      409,
     );
   }
 
-  const receipt = await prisma.factoryMilkBatchReceipt.findFirst({
-    where: { milkBatchId: batchId, factoryId: factory.id },
-    include: { milkBatch: { include: { processingBatches: true } } },
-  });
-  if (!receipt) return json({ error: "Receive this batch before inspection." }, 409);
-  if (receipt.milkBatch.processingBatches.length) {
-    return json({ error: "A batch already used in production cannot be re-inspected." }, 409);
-  }
-  const latest = await prisma.milkQualityInspection.findFirst({
-    where: { milkBatchId: batchId },
-    orderBy: { inspectedAt: "desc" },
-  });
-  if (latest && latest.status !== "ON_HOLD") {
-    return json({ error: "Only batches on hold may be inspected again." }, 409);
+  // Prevent reinspection after production allocation
+  if (receipt.milkBatch.processingBatches.length > 0) {
+    return json(
+      {
+        error: "A batch already used in production cannot be re-inspected.",
+      },
+      409,
+    );
   }
 
+  // Only ON_HOLD batches can be inspected again
+  const latest = await prisma.milkQualityInspection.findFirst({
+    where: {
+      milkBatchId: batchId,
+    },
+    orderBy: {
+      inspectedAt: "desc",
+    },
+  });
+
+  if (latest && latest.status !== "ON_HOLD") {
+    return json(
+      {
+        error: "Only batches on hold may be inspected again.",
+      },
+      409,
+    );
+  }
+
+  // Save inspection and activity log
   const inspection = await prisma.$transaction(async (tx) => {
     const created = await tx.milkQualityInspection.create({
       data: {
         milkBatchId: batchId,
         inspectorUserId: user.userId,
+
         temperatureC: body.data.temperatureC,
         fatPercent: body.data.fatPercent,
         snfPercent: body.data.snfPercent,
         acidityPercent: body.data.acidityPercent,
-        adulterationResult: body.data.adulterationResult,
-        status: body.data.status,
-        remarks: body.data.remarks || null,
-        inspectedAt: body.data.inspectedAt ? new Date(body.data.inspectedAt) : new Date(),
+
+        qualityResult: qualityDecision.qualityResult,
+        status: qualityDecision.status,
+
+        remarks: [
+          body.data.remarks?.trim(),
+          ...qualityDecision.reasons,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+
+        inspectedAt: body.data.inspectedAt
+          ? new Date(body.data.inspectedAt)
+          : new Date(),
       },
     });
-    await recordActivity(tx, factory, "QUALITY_INSPECTION_RECORDED", "milk_batch", batchId, {
-      status: body.data.status,
-      adulterationResult: body.data.adulterationResult,
-      inspectionId: created.id,
-    });
+
+    await recordActivity(
+      tx,
+      factory,
+      "QUALITY_INSPECTION_RECORDED",
+      "milk_batch",
+      batchId,
+      {
+        status: qualityDecision.status,
+        qualityResult: qualityDecision.qualityResult,
+        reasons: qualityDecision.reasons,
+        inspectionId: created.id,
+      },
+    );
+
     return created;
   });
-  return json({ inspection }, 201);
+
+  return json(
+    {
+      message: "Milk quality inspection completed.",
+      inspection,
+      decision: qualityDecision,
+    },
+    201,
+  );
 }
 
 async function listProduction(factory: FactoryProfile) {
@@ -811,8 +934,8 @@ async function createProduction(
     (batch) =>
       batch.factoryReceipt?.factoryId !== factory.id ||
       batch.qualityInspections[0]?.status !== "ACCEPTED" ||
-      batch.qualityInspections[0]?.adulterationResult !== "PASS" ||
-      batch.processingBatches.length > 0,
+batch.qualityInspections[0]?.qualityResult !== "PASS" ||      
+batch.processingBatches.length > 0,
   );
   if (ineligible) {
     return json(
