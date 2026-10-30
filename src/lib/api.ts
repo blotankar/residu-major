@@ -523,3 +523,43 @@ export function fetchFactoryReports(params: { from?: string; to?: string } = {})
   const suffix = query.size ? `?${query.toString()}` : "";
   return apiRequest<FactoryReportData>(`/api/factory/reports${suffix}`);
 }
+
+export type FactoryCollectionCentre = {
+  id: string;
+  name: string;
+  code: string;
+  village: string | null;
+};
+
+export type FactoryCentreMilkBatch = {
+  id: string;
+  batchId: string;
+  date: string;
+  volumeL: number;
+  status: string;
+  collectionCentreId: string;
+};
+
+export async function searchFactoryCollectionCentres(search: string) {
+  return apiRequest<FactoryCollectionCentre[]>(
+    `/api/factory/collection-centres/search?search=${encodeURIComponent(search)}`,
+  );
+}
+
+export async function fetchFactoryCentreBatches(centreId: string) {
+  return apiRequest<FactoryCentreMilkBatch[]>(
+    `/api/factory/collection-centres/${encodeURIComponent(centreId)}/batches`,
+  );
+}
+
+export async function addFactoryIntakeBatches(input: {
+  milkBatchIds: string[];
+}) {
+  return apiRequest<{ message: string; addedCount: number }>(
+    "/api/factory/intake/add",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}

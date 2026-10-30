@@ -34,8 +34,8 @@ export const roles: RoleDef[] = [
   {
     id: "collection_centre",
     label: "Collection Centre",
-    person: "Kolewadi Collection Centre",
-    org: "CC-SAT-07",
+    person: "Collection Centre",
+    org: "residuguard",
     description: "Create milk batch IDs and block milk from animals under withdrawal.",
     path: "/collection-centre",
     icon: Milk,

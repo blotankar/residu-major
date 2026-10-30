@@ -1,5 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+
+import {
+  createFileRoute,
+} from "@tanstack/react-router";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   Boxes,
   ClipboardCheck,
@@ -10,6 +20,7 @@ import {
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
+
 import { PortalShell } from "@/components/residuguard/PortalShell";
 import { RoleGate } from "@/components/residuguard/RoleGate";
 import { StatCard } from "@/components/residuguard/StatCard";
@@ -17,6 +28,7 @@ import { StatusBadge } from "@/components/residuguard/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import {
   Table,
   TableBody,
@@ -25,6 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
 import {
   completeFactoryProduction,
   createFactoryDispatch,
@@ -38,6 +51,13 @@ import {
   fetchFactoryTrace,
   inspectFactoryBatch,
   receiveFactoryBatch,
+
+  searchFactoryCollectionCentres,
+  fetchFactoryCentreBatches,
+  addFactoryIntakeBatches,
+
+  type FactoryCollectionCentre,
+  type FactoryCentreMilkBatch,
   type FactoryDashboardData,
   type FactoryDispatch,
   type FactoryIntakeBatch,
@@ -46,6 +66,7 @@ import {
   type FactoryProductionRun,
   type FactoryReportData,
 } from "@/lib/api";
+
 import { formatDate } from "@/lib/residuguard-data";
 
 export const Route = createFileRoute("/factory")({
@@ -59,6 +80,7 @@ export const Route = createFileRoute("/factory")({
       },
     ],
   }),
+
   component: () => (
     <RoleGate role="factory">
       <FactoryDashboard />
@@ -96,17 +118,33 @@ const emptyData: FactoryData = {
   production: [],
   inventory: [],
   dispatches: [],
-  reports: { receipts: [], productionRuns: [], productLots: [], dispatches: [], inspections: [] },
+  reports: {
+    receipts: [],
+    productionRuns: [],
+    productLots: [],
+    dispatches: [],
+    inspections: [],
+  },
 };
 
 function todayInput() {
   const now = new Date();
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+
+  return new Date(
+    now.getTime() - now.getTimezoneOffset() * 60_000,
+  )
+    .toISOString()
+    .slice(0, 10);
 }
 
 function localDateTimeInput() {
   const now = new Date();
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+
+  return new Date(
+    now.getTime() - now.getTimezoneOffset() * 60_000,
+  )
+    .toISOString()
+    .slice(0, 16);
 }
 
 function latestInspection(batch: FactoryIntakeBatch) {
@@ -119,37 +157,89 @@ function FactoryDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Milk intake filters
   const [search, setSearch] = useState("");
   const [intakeStatus, setIntakeStatus] = useState("");
-  const [receiptQuantities, setReceiptQuantities] = useState<Record<string, string>>({});
-  const [receiptTimes, setReceiptTimes] = useState<Record<string, string>>({});
+
+  // Receipt inputs
+  const [receiptQuantities, setReceiptQuantities] = useState<
+    Record<string, string>
+  >({});
+  const [receiptTimes, setReceiptTimes] = useState<
+    Record<string, string>
+  >({});
+
+  // Collection centre search and batch selection
+  const [centreSearch, setCentreSearch] = useState("");
+  const [centreResults, setCentreResults] = useState<
+    FactoryCollectionCentre[]
+  >([]);
+  const [selectedCentre, setSelectedCentre] =
+    useState<FactoryCollectionCentre | null>(null);
+
+  const [centreBatches, setCentreBatches] = useState<
+    FactoryCentreMilkBatch[]
+  >([]);
+
+  const [selectedMilkBatchIds, setSelectedMilkBatchIds] = useState<
+    string[]
+  >([]);
+
+  const [searchingCentres, setSearchingCentres] = useState(false);
+  const [loadingCentreBatches, setLoadingCentreBatches] = useState(false);
+  const [addingBatches, setAddingBatches] = useState(false);
+
+  // Quality inspection
   const [inspectionBatchId, setInspectionBatchId] = useState("");
+
   const [inspection, setInspection] = useState({
     temperatureC: "",
     fatPercent: "",
     snfPercent: "",
     acidityPercent: "",
-    adulterationResult: "INCONCLUSIVE" as "PASS" | "FAIL" | "INCONCLUSIVE",
+    adulterationResult: "INCONCLUSIVE" as
+      | "PASS"
+      | "FAIL"
+      | "INCONCLUSIVE",
     status: "ON_HOLD" as "ACCEPTED" | "ON_HOLD" | "REJECTED",
     remarks: "",
   });
+
+  // Production
   const [productionBatchIds, setProductionBatchIds] = useState<string[]>([]);
   const [product, setProduct] = useState("");
   const [productionDate, setProductionDate] = useState(todayInput);
+
   const [completionId, setCompletionId] = useState("");
   const [outputVolume, setOutputVolume] = useState("");
   const [wastage, setWastage] = useState("");
-  const [dispatchItems, setDispatchItems] = useState<Record<string, string>>({});
+
+  // Dispatch
+  const [dispatchItems, setDispatchItems] = useState<
+    Record<string, string>
+  >({});
   const [destination, setDestination] = useState("");
   const [transportDetails, setTransportDetails] = useState("");
+
+  // Traceability
   const [traceQuery, setTraceQuery] = useState("");
   const [traceResult, setTraceResult] = useState<unknown>(null);
   const [traceError, setTraceError] = useState<string | null>(null);
+
+  // Reports
   const [reportFrom, setReportFrom] = useState("");
   const [reportTo, setReportTo] = useState("");
 
+  // Load all factory data
   const loadData = useCallback(async () => {
-    const [dashboard, intake, production, inventory, dispatches, reports] = await Promise.all([
+    const [
+      dashboard,
+      intake,
+      production,
+      inventory,
+      dispatches,
+      reports,
+    ] = await Promise.all([
       fetchFactoryDashboard(),
       fetchFactoryIntake(),
       fetchFactoryProduction(),
@@ -157,17 +247,31 @@ function FactoryDashboard() {
       fetchFactoryDispatches(),
       fetchFactoryReports(),
     ]);
-    setData({ dashboard, intake, production, inventory, dispatches, reports });
+
+    setData({
+      dashboard,
+      intake,
+      production,
+      inventory,
+      dispatches,
+      reports,
+    });
   }, []);
 
   const reload = useCallback(
     async (showSpinner = false) => {
       if (showSpinner) setRefreshing(true);
+
       setError(null);
+
       try {
         await loadData();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to load factory data.";
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Unable to load factory data.";
+
         setError(message);
         throw err;
       } finally {
@@ -182,55 +286,213 @@ function FactoryDashboard() {
     void reload().catch(() => {});
   }, [reload]);
 
+  // --------------------------------------------------
+  // COLLECTION CENTRE SEARCH
+  // --------------------------------------------------
+
+  async function searchCentres(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const query = centreSearch.trim();
+
+    if (query.length < 2) {
+      toast.error("Enter at least 2 characters to search.");
+      return;
+    }
+
+    setSearchingCentres(true);
+    setCentreResults([]);
+    setSelectedCentre(null);
+    setCentreBatches([]);
+    setSelectedMilkBatchIds([]);
+
+    try {
+      const results = await searchFactoryCollectionCentres(query);
+
+      setCentreResults(results);
+
+      if (results.length === 0) {
+        toast.info("No collection centres found.");
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Unable to search collection centres.",
+      );
+    } finally {
+      setSearchingCentres(false);
+    }
+  }
+
+  // --------------------------------------------------
+  // SELECT CENTRE AND LOAD ITS MILK BATCHES
+  // --------------------------------------------------
+
+  async function selectCentre(centre: FactoryCollectionCentre) {
+    setSelectedCentre(centre);
+    setCentreBatches([]);
+    setSelectedMilkBatchIds([]);
+    setLoadingCentreBatches(true);
+
+    try {
+      const batches = await fetchFactoryCentreBatches(centre.id);
+
+      setCentreBatches(batches);
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Unable to load collection centre batches.",
+      );
+    } finally {
+      setLoadingCentreBatches(false);
+    }
+  }
+
+  // --------------------------------------------------
+  // ADD SELECTED BATCHES TO FACTORY INTAKE
+  // --------------------------------------------------
+
+  async function submitAddBatches() {
+    if (selectedMilkBatchIds.length === 0) {
+      toast.error("Select at least one milk batch.");
+      return;
+    }
+
+    setAddingBatches(true);
+
+    try {
+      const result = await addFactoryIntakeBatches({
+        milkBatchIds: selectedMilkBatchIds,
+      });
+
+      toast.success(
+        `${result.addedCount} milk batch(es) added to factory intake.`,
+      );
+
+      setSelectedMilkBatchIds([]);
+
+      // Refresh the centre's available batches
+      if (selectedCentre) {
+        await selectCentre(selectedCentre);
+      }
+
+      // Refresh factory intake list
+      await reload();
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Unable to add batches to factory intake.",
+      );
+    } finally {
+      setAddingBatches(false);
+    }
+  }
+
+  // --------------------------------------------------
+  // FILTER FACTORY INTAKE
+  // --------------------------------------------------
+
   const filteredIntake = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
+
     return data.intake.filter((batch) => {
       const inspectionStatus = latestInspection(batch)?.status;
+
       const matchesSearch =
         !normalizedSearch ||
         batch.batchId.toLowerCase().includes(normalizedSearch) ||
         batch.collectionCentre.name.toLowerCase().includes(normalizedSearch) ||
         batch.collectionCentre.code.toLowerCase().includes(normalizedSearch);
+
       const matchesStatus =
         !intakeStatus ||
-        (intakeStatus === "PENDING_RECEIPT" && !batch.factoryReceipt) ||
-        (intakeStatus === "RECEIVED" && Boolean(batch.factoryReceipt)) ||
+        (intakeStatus === "RECEIVED" &&
+          Boolean(batch.factoryReceipt)) ||
         (intakeStatus === "PENDING_INSPECTION" &&
           Boolean(batch.factoryReceipt) &&
           batch.qualityInspections.length === 0) ||
         inspectionStatus === intakeStatus;
+
       return matchesSearch && matchesStatus;
     });
   }, [data.intake, search, intakeStatus]);
 
+  // --------------------------------------------------
+  // PRODUCTION ELIGIBILITY
+  // --------------------------------------------------
+
   const eligibleProductionBatches = data.intake.filter((batch) => {
     const inspectionResult = latestInspection(batch);
+
     return (
-      batch.factoryReceipt &&
+      Boolean(batch.factoryReceipt) &&
       inspectionResult?.status === "ACCEPTED" &&
       inspectionResult.adulterationResult === "PASS" &&
       batch.processingBatches.length === 0
     );
   });
 
+  // --------------------------------------------------
+  // RECORD RECEIPT
+  // --------------------------------------------------
+
   async function receiveBatch(batch: FactoryIntakeBatch) {
-    const quantity = Number(receiptQuantities[batch.id] ?? batch.volumeL);
+    const quantity = Number(
+      receiptQuantities[batch.id] ?? batch.volumeL,
+    );
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      toast.error("Enter a valid received quantity.");
+      return;
+    }
+
     try {
       const receivedAt = receiptTimes[batch.id];
+
       await receiveFactoryBatch(batch.id, {
         receivedQuantityL: quantity,
-        ...(receivedAt ? { receivedAt: new Date(receivedAt).toISOString() } : {}),
+        ...(receivedAt
+          ? { receivedAt: new Date(receivedAt).toISOString() }
+          : {}),
       });
+
       await reload();
+
       toast.success(`${batch.batchId} receipt recorded`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to record receipt.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Unable to record receipt.",
+      );
     }
   }
 
+  // --------------------------------------------------
+  // QUALITY INSPECTION
+  // --------------------------------------------------
+
+  const pendingReceipts = filteredIntake.filter(
+    (batch) => !batch.factoryReceipt,
+  );
+
+  const pendingInspectionBatches = filteredIntake.filter((batch) => {
+    const quality = latestInspection(batch);
+
+    return (
+      Boolean(batch.factoryReceipt) &&
+      (!quality || quality.status === "ON_HOLD")
+    );
+  });
+
   async function submitInspection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!inspectionBatchId) return;
+
     try {
       await inspectFactoryBatch(inspectionBatchId, {
         temperatureC: Number(inspection.temperatureC),
@@ -239,9 +501,13 @@ function FactoryDashboard() {
         acidityPercent: Number(inspection.acidityPercent),
         adulterationResult: inspection.adulterationResult,
         status: inspection.status,
-        ...(inspection.remarks.trim() ? { remarks: inspection.remarks.trim() } : {}),
+        ...(inspection.remarks.trim()
+          ? { remarks: inspection.remarks.trim() }
+          : {}),
       });
+
       await reload();
+
       setInspection({
         temperatureC: "",
         fatPercent: "",
@@ -251,103 +517,194 @@ function FactoryDashboard() {
         status: "ON_HOLD",
         remarks: "",
       });
+
+      setInspectionBatchId("");
+
       toast.success("Inspection recorded");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to save inspection.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Unable to save inspection.",
+      );
     }
   }
 
+  // --------------------------------------------------
+  // CREATE PRODUCTION
+  // --------------------------------------------------
+
   async function submitProduction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!product.trim() || !productionBatchIds.length) return;
+
     try {
       const result = await createFactoryProduction({
         product: product.trim(),
         date: new Date(`${productionDate}T12:00:00`).toISOString(),
         milkBatchIds: productionBatchIds,
       });
+
       await reload();
+
       setProduct("");
       setProductionBatchIds([]);
-      toast.success(`Production run ${result.productionRun.batchId} created`);
+
+      toast.success(
+        `Production run ${result.productionRun.batchId} created`,
+      );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to create production run.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Unable to create production run.",
+      );
     }
   }
+
+  // --------------------------------------------------
+  // COMPLETE PRODUCTION
+  // --------------------------------------------------
 
   async function submitCompletion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!completionId) return;
+
     try {
-      const result: FactoryProductionCompletion = await completeFactoryProduction(completionId, {
-        outputVolumeL: Number(outputVolume),
-        wastageL: Number(wastage),
-      });
+      const result: FactoryProductionCompletion =
+        await completeFactoryProduction(completionId, {
+          outputVolumeL: Number(outputVolume),
+          wastageL: Number(wastage),
+        });
+
       await reload();
+
       setCompletionId("");
       setOutputVolume("");
       setWastage("");
-      toast.success(`Finished product lot ${result.productLot.lotId} created`);
+
+      toast.success(
+        `Finished product lot ${result.productLot.lotId} created`,
+      );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to complete production.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Unable to complete production.",
+      );
     }
   }
 
+  // --------------------------------------------------
+  // DISPATCH FINISHED PRODUCTS
+  // --------------------------------------------------
+
+  const availableLots = data.inventory.filter(
+    (lot) =>
+      lot.status === "AVAILABLE" &&
+      Number(lot.currentQuantityL) > 0,
+  );
+
   async function submitDispatch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     const items = Object.entries(dispatchItems)
-      .map(([lotId, quantity]) => ({ lotId, quantityL: Number(quantity) }))
-      .filter((item) => Number.isFinite(item.quantityL) && item.quantityL > 0);
+      .map(([lotId, quantity]) => ({
+        lotId,
+        quantityL: Number(quantity),
+      }))
+      .filter(
+        (item) =>
+          Number.isFinite(item.quantityL) &&
+          item.quantityL > 0,
+      );
+
     if (!destination.trim() || items.length === 0) {
-      toast.error("Enter a destination and a positive quantity for at least one lot.");
+      toast.error(
+        "Enter a destination and a positive quantity for at least one lot.",
+      );
       return;
     }
+
     try {
       const result = await createFactoryDispatch({
         destination: destination.trim(),
         items,
-        ...(transportDetails.trim() ? { transportDetails: transportDetails.trim() } : {}),
+        ...(transportDetails.trim()
+          ? { transportDetails: transportDetails.trim() }
+          : {}),
       });
+
       await reload();
+
       setDestination("");
       setTransportDetails("");
       setDispatchItems({});
-      toast.success(`Dispatch ${result.dispatch.dispatchId} recorded`);
+
+      toast.success(
+        `Dispatch ${result.dispatch.dispatchId} recorded`,
+      );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to dispatch inventory.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Unable to dispatch inventory.",
+      );
     }
   }
+
+  // --------------------------------------------------
+  // TRACEABILITY
+  // --------------------------------------------------
 
   async function submitTrace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     setTraceError(null);
     setTraceResult(null);
+
     try {
-      setTraceResult(await fetchFactoryTrace(traceQuery.trim()));
+      setTraceResult(
+        await fetchFactoryTrace(traceQuery.trim()),
+      );
     } catch (err) {
-      setTraceError(err instanceof Error ? err.message : "Traceability lookup failed.");
+      setTraceError(
+        err instanceof Error
+          ? err.message
+          : "Traceability lookup failed.",
+      );
     }
   }
 
+  // --------------------------------------------------
+  // REPORT FILTER
+  // --------------------------------------------------
+
   async function filterReports(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     try {
-      const reports = await fetchFactoryReports({ from: reportFrom, to: reportTo });
-      setData((current) => ({ ...current, reports }));
+      const reports = await fetchFactoryReports({
+        from: reportFrom,
+        to: reportTo,
+      });
+
+      setData((current) => ({
+        ...current,
+        reports,
+      }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to filter reports.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Unable to filter reports.",
+      );
     }
   }
 
   const metrics = data.dashboard.metrics;
-  const pendingReceipts = filteredIntake.filter((batch) => !batch.factoryReceipt);
-  const pendingInspectionBatches = filteredIntake.filter((batch) => {
-    const quality = latestInspection(batch);
-    return batch.factoryReceipt && (!quality || quality.status === "ON_HOLD");
-  });
-  const availableLots = data.inventory.filter(
-    (lot) => lot.status === "AVAILABLE" && Number(lot.currentQuantityL) > 0,
-  );
 
   return (
     <PortalShell
@@ -361,7 +718,10 @@ function FactoryDashboard() {
           onClick={() => void reload(true).catch(() => {})}
           disabled={refreshing}
         >
-          <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} aria-hidden />
+          <RefreshCw
+            className={`size-4 ${refreshing ? "animate-spin" : ""}`}
+            aria-hidden
+          />
           Refresh data
         </Button>
       </div>
@@ -372,7 +732,12 @@ function FactoryDashboard() {
           className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
         >
           <span>{error}</span>
-          <Button size="sm" variant="outline" onClick={() => void reload(true).catch(() => {})}>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void reload(true).catch(() => {})}
+          >
             Try again
           </Button>
         </div>
@@ -395,6 +760,10 @@ function FactoryDashboard() {
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
+          {/* ========================================== */}
+          {/* OVERVIEW */}
+          {/* ========================================== */}
+
           <TabsContent value="overview" className="mt-5 space-y-6">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard
@@ -403,39 +772,46 @@ function FactoryDashboard() {
                 icon={Boxes}
                 tone="info"
               />
+
               <StatCard
                 label="Pending inspections"
                 value={metrics.pendingInspections}
                 icon={ClipboardCheck}
                 tone="hold"
               />
+
               <StatCard
                 label="Received / accepted milk"
                 value={`${metrics.receivedQuantityL.toFixed(1)} / ${metrics.acceptedQuantityL.toFixed(1)} L`}
                 icon={FactoryIcon}
               />
+
               <StatCard
                 label="Active production runs"
                 value={metrics.activeProductionRuns}
                 icon={FactoryIcon}
               />
+
               <StatCard
                 label="Accepted / held / rejected"
                 value={`${metrics.acceptedBatches} / ${metrics.heldBatches} / ${metrics.rejectedBatches}`}
                 icon={ClipboardCheck}
               />
+
               <StatCard
                 label="Finished inventory"
                 value={`${metrics.finishedInventoryL.toFixed(1)} L`}
                 icon={PackageCheck}
                 tone="safe"
               />
+
               <StatCard
                 label="Dispatches today"
                 value={metrics.dispatchesToday}
                 icon={Truck}
                 tone="info"
               />
+
               <StatCard
                 label="Lots available to dispatch"
                 value={availableLots.length}
@@ -444,9 +820,10 @@ function FactoryDashboard() {
             </div>
 
             <section className="panel p-5">
-              <div className="mb-3 flex items-center gap-2">
-                <h2 className="text-lg font-semibold">Batch alerts</h2>
-              </div>
+              <h2 className="mb-3 text-lg font-semibold">
+                Batch alerts
+              </h2>
+
               {data.dashboard.alerts.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No held or rejected batches require attention.
@@ -459,7 +836,9 @@ function FactoryDashboard() {
                       className="flex flex-wrap items-center gap-2 rounded-md bg-hold-soft p-3 text-sm text-hold"
                     >
                       <StatusBadge status={alert.status} />
-                      <span className="font-medium">{alert.batchId}</span>
+                      <span className="font-medium">
+                        {alert.batchId}
+                      </span>
                       <span>{alert.message}</span>
                     </li>
                   ))}
@@ -468,7 +847,10 @@ function FactoryDashboard() {
             </section>
 
             <section className="panel p-5">
-              <h2 className="text-lg font-semibold">Recent factory activity</h2>
+              <h2 className="text-lg font-semibold">
+                Recent factory activity
+              </h2>
+
               {data.dashboard.recentActivity.length === 0 ? (
                 <p className="mt-3 text-sm text-muted-foreground">
                   No factory activity recorded yet.
@@ -481,8 +863,11 @@ function FactoryDashboard() {
                       className="flex flex-wrap justify-between gap-2 py-3 text-sm"
                     >
                       <span className="font-medium">
-                        {event.eventType.replaceAll("_", " ").toLowerCase()}
+                        {event.eventType
+                          .replaceAll("_", " ")
+                          .toLowerCase()}
                       </span>
+
                       <time className="text-muted-foreground">
                         {new Date(event.createdAt).toLocaleString()}
                       </time>
@@ -493,32 +878,278 @@ function FactoryDashboard() {
             </section>
           </TabsContent>
 
-          <TabsContent value="intake" className="mt-5">
+          {/* ========================================== */}
+          {/* MILK INTAKE */}
+          {/* ========================================== */}
+
+          <TabsContent value="intake" className="mt-5 space-y-5">
+
+            {/* Search collection centre and add batches */}
+
+            <section className="panel space-y-5 p-5">
+              <div>
+                <h2 className="text-lg font-semibold">
+                  Add milk batches to factory intake
+                </h2>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Search for a collection centre using its name or centre
+                  code. Select the milk batches you want to add to your
+                  factory intake.
+                </p>
+              </div>
+
+              <form
+                onSubmit={searchCentres}
+                className="flex flex-col gap-3 sm:flex-row"
+              >
+                <Input
+                  value={centreSearch}
+                  onChange={(event) =>
+                    setCentreSearch(event.target.value)
+                  }
+                  placeholder="Enter centre name or code (e.g. CC-001)"
+                  aria-label="Search collection centres"
+                />
+
+                <Button
+                  type="submit"
+                  disabled={searchingCentres}
+                >
+                  {searchingCentres
+                    ? "Searching..."
+                    : "Search centres"}
+                </Button>
+              </form>
+
+              {/* Collection centre search results */}
+
+              {centreResults.length > 0 && !selectedCentre ? (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">
+                    Search results
+                  </h3>
+
+                  {centreResults.map((centre) => (
+                    <button
+                      type="button"
+                      key={centre.id}
+                      onClick={() => void selectCentre(centre)}
+                      className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-muted/50"
+                    >
+                      <span>
+                        <span className="block font-medium">
+                          {centre.name}
+                        </span>
+
+                        <span className="text-xs text-muted-foreground">
+                          {centre.code}
+                          {centre.village
+                            ? ` · ${centre.village}`
+                            : ""}
+                        </span>
+                      </span>
+
+                      <span className="text-sm text-primary">
+                        View batches →
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Selected centre */}
+
+              {selectedCentre ? (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                    <div>
+                      <p className="font-semibold">
+                        {selectedCentre.name}
+                      </p>
+
+                      <p className="text-sm text-muted-foreground">
+                        {selectedCentre.code}
+                        {selectedCentre.village
+                          ? ` · ${selectedCentre.village}`
+                          : ""}
+                      </p>
+                    </div>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedCentre(null);
+                        setCentreBatches([]);
+                        setSelectedMilkBatchIds([]);
+                      }}
+                    >
+                      Change centre
+                    </Button>
+                  </div>
+
+                  {loadingCentreBatches ? (
+                    <p className="py-5 text-center text-sm text-muted-foreground">
+                      Loading eligible milk batches...
+                    </p>
+                  ) : centreBatches.length === 0 ? (
+                    <EmptyState message="No eligible milk batches are available at this collection centre." />
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="font-semibold">
+                          Available milk batches ({centreBatches.length})
+                        </h3>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedMilkBatchIds(
+                              selectedMilkBatchIds.length ===
+                                centreBatches.length
+                                ? []
+                                : centreBatches.map(
+                                    (batch) => batch.id,
+                                  ),
+                            );
+                          }}
+                        >
+                          {selectedMilkBatchIds.length ===
+                          centreBatches.length
+                            ? "Deselect all"
+                            : "Select all"}
+                        </Button>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Select</TableHead>
+                              <TableHead>Batch ID</TableHead>
+                              <TableHead>Collection date</TableHead>
+                              <TableHead>Quantity (L)</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+
+                          <TableBody>
+                            {centreBatches.map((batch) => (
+                              <TableRow key={batch.id}>
+                                <TableCell>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedMilkBatchIds.includes(
+                                      batch.id,
+                                    )}
+                                    onChange={(event) => {
+                                      setSelectedMilkBatchIds(
+                                        (current) =>
+                                          event.target.checked
+                                            ? [...current, batch.id]
+                                            : current.filter(
+                                                (id) =>
+                                                  id !== batch.id,
+                                              ),
+                                      );
+                                    }}
+                                    aria-label={`Select batch ${batch.batchId}`}
+                                  />
+                                </TableCell>
+
+                                <TableCell className="font-medium">
+                                  {batch.batchId}
+                                </TableCell>
+
+                                <TableCell>
+                                  {formatDate(batch.date)}
+                                </TableCell>
+
+                                <TableCell>
+                                  {Number(batch.volumeL).toFixed(3)}
+                                </TableCell>
+
+                                <TableCell>
+                                  <StatusBadge status={batch.status} />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                        <p className="text-sm text-muted-foreground">
+                          {selectedMilkBatchIds.length} batch(es) selected
+                        </p>
+
+                        <Button
+                          type="button"
+                          disabled={
+                            selectedMilkBatchIds.length === 0 ||
+                            addingBatches
+                          }
+                          onClick={() => void submitAddBatches()}
+                        >
+                          {addingBatches
+                            ? "Adding batches..."
+                            : "Add to Factory Milk Intake"}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : null}
+            </section>
+
+            {/* Existing factory intake list */}
+
             <section className="panel p-5">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold">
+                  Factory milk intake
+                </h2>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Batches added to your factory appear here. Record their
+                  actual received quantity and receipt time before
+                  proceeding to quality inspection.
+                </p>
+              </div>
+
               <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_15rem]">
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search batch or collection centre"
+                  placeholder="Search batch ID or collection centre"
                   aria-label="Search milk batches"
                 />
+
                 <select
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={intakeStatus}
-                  onChange={(event) => setIntakeStatus(event.target.value)}
+                  onChange={(event) =>
+                    setIntakeStatus(event.target.value)
+                  }
                   aria-label="Filter intake status"
                 >
                   <option value="">All intake statuses</option>
-                  <option value="PENDING_RECEIPT">Awaiting receipt</option>
                   <option value="RECEIVED">Received</option>
-                  <option value="PENDING_INSPECTION">Awaiting inspection</option>
+                  <option value="PENDING_INSPECTION">
+                    Awaiting inspection
+                  </option>
                   <option value="ACCEPTED">Accepted</option>
                   <option value="ON_HOLD">On hold</option>
                   <option value="REJECTED">Rejected</option>
                 </select>
               </div>
-              {pendingReceipts.length === 0 && filteredIntake.length === 0 ? (
-                <EmptyState message="No milk batches match this filter." />
+
+              {filteredIntake.length === 0 ? (
+                <EmptyState message="No factory intake batches found. Search for a collection centre above and add its eligible milk batches." />
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
@@ -533,23 +1164,38 @@ function FactoryDashboard() {
                         <TableHead>Receipt action</TableHead>
                       </TableRow>
                     </TableHeader>
+
                     <TableBody>
                       {filteredIntake.map((batch) => {
                         const quality = latestInspection(batch);
+
                         return (
                           <TableRow key={batch.id}>
-                            <TableCell className="font-medium">{batch.batchId}</TableCell>
+                            <TableCell className="font-medium">
+                              {batch.batchId}
+                            </TableCell>
+
                             <TableCell>
                               {batch.collectionCentre.name}
+
                               <span className="block text-xs text-muted-foreground">
                                 {batch.collectionCentre.code}
                               </span>
                             </TableCell>
-                            <TableCell>{formatDate(batch.date)}</TableCell>
-                            <TableCell>{Number(batch.volumeL).toFixed(3)}</TableCell>
+
+                            <TableCell>
+                              {formatDate(batch.date)}
+                            </TableCell>
+
+                            <TableCell>
+                              {Number(batch.volumeL).toFixed(3)}
+                            </TableCell>
+
                             <TableCell>
                               {batch.factoryReceipt ? (
-                                Number(batch.factoryReceipt.receivedQuantityL).toFixed(3)
+                                Number(
+                                  batch.factoryReceipt.receivedQuantityL,
+                                ).toFixed(3)
                               ) : (
                                 <Input
                                   aria-label={`Received quantity for ${batch.batchId}`}
@@ -557,21 +1203,29 @@ function FactoryDashboard() {
                                   min="0.001"
                                   step="0.001"
                                   className="min-w-24"
-                                  value={receiptQuantities[batch.id] ?? String(batch.volumeL)}
+                                  value={
+                                    receiptQuantities[batch.id] ??
+                                    String(batch.volumeL)
+                                  }
                                   onChange={(event) =>
-                                    setReceiptQuantities((current) => ({
-                                      ...current,
-                                      [batch.id]: event.target.value,
-                                    }))
+                                    setReceiptQuantities(
+                                      (current) => ({
+                                        ...current,
+                                        [batch.id]:
+                                          event.target.value,
+                                      }),
+                                    )
                                   }
                                 />
                               )}
+
                               {batch.factoryReceipt?.discrepancyNote ? (
                                 <span className="block max-w-48 text-xs text-hold">
                                   {batch.factoryReceipt.discrepancyNote}
                                 </span>
                               ) : null}
                             </TableCell>
+
                             <TableCell>
                               {quality ? (
                                 <StatusBadge status={quality.status} />
@@ -581,32 +1235,39 @@ function FactoryDashboard() {
                                 "Not received"
                               )}
                             </TableCell>
+
                             <TableCell>
                               {!batch.factoryReceipt ? (
                                 <div className="flex min-w-52 flex-col gap-2">
                                   <Input
                                     aria-label={`Receipt time for ${batch.batchId}`}
                                     type="datetime-local"
-                                    value={receiptTimes[batch.id] ?? ""}
+                                    value={
+                                      receiptTimes[batch.id] ?? ""
+                                    }
                                     onChange={(event) =>
                                       setReceiptTimes((current) => ({
                                         ...current,
-                                        [batch.id]: event.target.value,
+                                        [batch.id]:
+                                          event.target.value,
                                       }))
                                     }
                                   />
+
                                   <Button
                                     size="sm"
                                     disabled={batch.status !== "SAFE"}
-                                    onClick={() => void receiveBatch(batch)}
+                                    onClick={() =>
+                                      void receiveBatch(batch)
+                                    }
                                   >
                                     Record receipt
                                   </Button>
                                 </div>
-                              ) : batch.factoryReceipt.receivedAt ? (
-                                formatDate(batch.factoryReceipt.receivedAt)
                               ) : (
-                                "Received"
+                                formatDate(
+                                  batch.factoryReceipt.receivedAt,
+                                )
                               )}
                             </TableCell>
                           </TableRow>
@@ -619,24 +1280,39 @@ function FactoryDashboard() {
             </section>
           </TabsContent>
 
+          {/* ========================================== */}
+          {/* QUALITY */}
+          {/* ========================================== */}
+
           <TabsContent value="quality" className="mt-5 space-y-5">
-            <form onSubmit={submitInspection} className="panel grid gap-4 p-5 md:grid-cols-2">
+            <form
+              onSubmit={submitInspection}
+              className="panel grid gap-4 p-5 md:grid-cols-2"
+            >
               <div className="md:col-span-2">
-                <h2 className="text-lg font-semibold">Record quality inspection</h2>
+                <h2 className="text-lg font-semibold">
+                  Record quality inspection
+                </h2>
+
                 <p className="text-sm text-muted-foreground">
-                  Enter measured values and the inspector’s test outcome. This system does not
-                  supply or infer regulatory thresholds.
+                  Enter measured values and the inspector’s test outcome.
+                  This system does not supply or infer regulatory thresholds.
                 </p>
               </div>
+
               <label className="space-y-1 text-sm font-medium">
                 Received batch
+
                 <select
                   required
                   value={inspectionBatchId}
-                  onChange={(event) => setInspectionBatchId(event.target.value)}
+                  onChange={(event) =>
+                    setInspectionBatchId(event.target.value)
+                  }
                   className="h-9 w-full rounded-md border border-input bg-background px-3"
                 >
                   <option value="">Select a received batch</option>
+
                   {pendingInspectionBatches.map((batch) => (
                     <option key={batch.id} value={batch.id}>
                       {batch.batchId}
@@ -644,45 +1320,64 @@ function FactoryDashboard() {
                   ))}
                 </select>
               </label>
+
               <NumericField
                 label="Temperature (°C)"
                 value={inspection.temperatureC}
                 onChange={(value) =>
-                  setInspection((current) => ({ ...current, temperatureC: value }))
+                  setInspection((current) => ({
+                    ...current,
+                    temperatureC: value,
+                  }))
                 }
               />
+
               <NumericField
                 label="Fat (%)"
                 min="0"
                 value={inspection.fatPercent}
                 onChange={(value) =>
-                  setInspection((current) => ({ ...current, fatPercent: value }))
+                  setInspection((current) => ({
+                    ...current,
+                    fatPercent: value,
+                  }))
                 }
               />
+
               <NumericField
                 label="SNF (%)"
                 min="0"
                 value={inspection.snfPercent}
                 onChange={(value) =>
-                  setInspection((current) => ({ ...current, snfPercent: value }))
+                  setInspection((current) => ({
+                    ...current,
+                    snfPercent: value,
+                  }))
                 }
               />
+
               <NumericField
                 label="Acidity (%)"
                 min="0"
                 value={inspection.acidityPercent}
                 onChange={(value) =>
-                  setInspection((current) => ({ ...current, acidityPercent: value }))
+                  setInspection((current) => ({
+                    ...current,
+                    acidityPercent: value,
+                  }))
                 }
               />
+
               <label className="space-y-1 text-sm font-medium">
                 Adulteration test result
+
                 <select
                   value={inspection.adulterationResult}
                   onChange={(event) =>
                     setInspection((current) => ({
                       ...current,
-                      adulterationResult: event.target.value as typeof current.adulterationResult,
+                      adulterationResult: event.target.value as
+                        typeof current.adulterationResult,
                     }))
                   }
                   className="h-9 w-full rounded-md border border-input bg-background px-3"
@@ -692,8 +1387,10 @@ function FactoryDashboard() {
                   <option value="INCONCLUSIVE">Inconclusive</option>
                 </select>
               </label>
+
               <label className="space-y-1 text-sm font-medium">
                 Inspection outcome
+
                 <select
                   value={inspection.status}
                   onChange={(event) =>
@@ -709,78 +1406,117 @@ function FactoryDashboard() {
                   <option value="REJECTED">Rejected</option>
                 </select>
               </label>
+
               <label className="space-y-1 text-sm font-medium md:col-span-2">
                 Remarks
+
                 <textarea
                   value={inspection.remarks}
                   onChange={(event) =>
-                    setInspection((current) => ({ ...current, remarks: event.target.value }))
+                    setInspection((current) => ({
+                      ...current,
+                      remarks: event.target.value,
+                    }))
                   }
                   maxLength={2000}
                   rows={3}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 font-normal"
                 />
               </label>
+
               <div className="md:col-span-2">
-                <Button type="submit" disabled={!inspectionBatchId}>
+                <Button
+                  type="submit"
+                  disabled={!inspectionBatchId}
+                >
                   Save inspection
                 </Button>
               </div>
             </form>
+
             <section className="panel p-5">
-              <h2 className="text-lg font-semibold">Recorded inspections</h2>
+              <h2 className="text-lg font-semibold">
+                Recorded inspections
+              </h2>
+
               {data.reports.inspections.length === 0 ? (
                 <EmptyState message="No quality inspections have been recorded." />
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Batch</TableHead>
-                      <TableHead>Inspected</TableHead>
-                      <TableHead>Inspector</TableHead>
-                      <TableHead>Temp °C</TableHead>
-                      <TableHead>Fat %</TableHead>
-                      <TableHead>SNF %</TableHead>
-                      <TableHead>Acidity %</TableHead>
-                      <TableHead>Adulteration</TableHead>
-                      <TableHead>Outcome</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.reports.inspections.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{item.milkBatch.batchId}</TableCell>
-                        <TableCell>{formatDate(item.inspectedAt)}</TableCell>
-                        <TableCell>{item.inspector.name}</TableCell>
-                        <TableCell>{item.temperatureC}</TableCell>
-                        <TableCell>{item.fatPercent}</TableCell>
-                        <TableCell>{item.snfPercent}</TableCell>
-                        <TableCell>{item.acidityPercent}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={item.adulterationResult} />
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={item.status} />
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Batch</TableHead>
+                        <TableHead>Inspected</TableHead>
+                        <TableHead>Inspector</TableHead>
+                        <TableHead>Temp °C</TableHead>
+                        <TableHead>Fat %</TableHead>
+                        <TableHead>SNF %</TableHead>
+                        <TableHead>Acidity %</TableHead>
+                        <TableHead>Adulteration</TableHead>
+                        <TableHead>Outcome</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+
+                    <TableBody>
+                      {data.reports.inspections.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            {item.milkBatch.batchId}
+                          </TableCell>
+
+                          <TableCell>
+                            {formatDate(item.inspectedAt)}
+                          </TableCell>
+
+                          <TableCell>{item.inspector.name}</TableCell>
+                          <TableCell>{item.temperatureC}</TableCell>
+                          <TableCell>{item.fatPercent}</TableCell>
+                          <TableCell>{item.snfPercent}</TableCell>
+                          <TableCell>{item.acidityPercent}</TableCell>
+
+                          <TableCell>
+                            <StatusBadge
+                              status={item.adulterationResult}
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <StatusBadge status={item.status} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </section>
           </TabsContent>
 
+          {/* ========================================== */}
+          {/* PRODUCTION */}
+          {/* ========================================== */}
+
           <TabsContent value="production" className="mt-5 space-y-5">
-            <form onSubmit={submitProduction} className="panel grid gap-4 p-5 md:grid-cols-2">
+            <form
+              onSubmit={submitProduction}
+              className="panel grid gap-4 p-5 md:grid-cols-2"
+            >
               <div className="md:col-span-2">
-                <h2 className="text-lg font-semibold">Start production run</h2>
+                <h2 className="text-lg font-semibold">
+                  Start production run
+                </h2>
+
                 <p className="text-sm text-muted-foreground">
-                  Only received batches whose latest inspection is accepted and has a passing
-                  adulteration test can be allocated.
+                  Only received batches whose latest inspection is
+                  accepted and has a passing adulteration test can be
+                  allocated.
                 </p>
               </div>
+
               <label className="space-y-1 text-sm font-medium">
                 Product type
+
                 <Input
                   required
                   maxLength={200}
@@ -789,19 +1525,29 @@ function FactoryDashboard() {
                   placeholder="Product name"
                 />
               </label>
+
               <label className="space-y-1 text-sm font-medium">
                 Production date
+
                 <Input
                   required
                   type="date"
                   value={productionDate}
-                  onChange={(event) => setProductionDate(event.target.value)}
+                  onChange={(event) =>
+                    setProductionDate(event.target.value)
+                  }
                 />
               </label>
+
               <div className="space-y-2 md:col-span-2">
-                <p className="text-sm font-medium">Eligible source batches</p>
+                <p className="text-sm font-medium">
+                  Eligible source batches
+                </p>
+
                 {eligibleProductionBatches.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No eligible batches available.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No eligible batches available.
+                  </p>
                 ) : (
                   eligibleProductionBatches.map((batch) => (
                     <label
@@ -819,23 +1565,37 @@ function FactoryDashboard() {
                           )
                         }
                       />
+
                       <span>
                         {batch.batchId} ·{" "}
-                        {Number(batch.factoryReceipt?.receivedQuantityL ?? 0).toFixed(3)} L
+                        {Number(
+                          batch.factoryReceipt?.receivedQuantityL ?? 0,
+                        ).toFixed(3)}{" "}
+                        L
                       </span>
                     </label>
                   ))
                 )}
               </div>
+
               <div className="md:col-span-2">
-                <Button type="submit" disabled={!product.trim() || productionBatchIds.length === 0}>
+                <Button
+                  type="submit"
+                  disabled={
+                    !product.trim() ||
+                    productionBatchIds.length === 0
+                  }
+                >
                   Create production run
                 </Button>
               </div>
             </form>
 
             <section className="panel p-5">
-              <h2 className="text-lg font-semibold">Production history</h2>
+              <h2 className="text-lg font-semibold">
+                Production history
+              </h2>
+
               {data.production.length === 0 ? (
                 <EmptyState message="No production runs recorded." />
               ) : (
@@ -853,26 +1613,40 @@ function FactoryDashboard() {
                         <TableHead>Action</TableHead>
                       </TableRow>
                     </TableHeader>
+
                     <TableBody>
                       {data.production.map((run) => (
                         <TableRow key={run.id}>
-                          <TableCell className="font-medium">{run.batchId}</TableCell>
+                          <TableCell className="font-medium">
+                            {run.batchId}
+                          </TableCell>
+
                           <TableCell>{run.product}</TableCell>
                           <TableCell>{formatDate(run.date)}</TableCell>
+
                           <TableCell>
-                            {Number(run.inputVolumeL ?? run.volumeL).toFixed(3)}
+                            {Number(
+                              run.inputVolumeL ?? run.volumeL,
+                            ).toFixed(3)}
                           </TableCell>
+
                           <TableCell>
-                            {run.outputVolumeL ?? "—"} / {run.wastageL ?? "—"}
+                            {run.outputVolumeL ?? "—"} /{" "}
+                            {run.wastageL ?? "—"}
                           </TableCell>
+
                           <TableCell>
                             {run.sourceMilkBatches
-                              .map((entry) => entry.milkBatch.batchId)
+                              .map(
+                                (entry) => entry.milkBatch.batchId,
+                              )
                               .join(", ")}
                           </TableCell>
+
                           <TableCell>
                             <StatusBadge status={run.status} />
                           </TableCell>
+
                           <TableCell>
                             {run.status === "PROCESSING" ? (
                               <Button
@@ -887,7 +1661,9 @@ function FactoryDashboard() {
                                 Record output
                               </Button>
                             ) : (
-                              run.productLots.map((lot) => lot.lotId).join(", ")
+                              run.productLots
+                                .map((lot) => lot.lotId)
+                                .join(", ")
                             )}
                           </TableCell>
                         </TableRow>
@@ -896,6 +1672,7 @@ function FactoryDashboard() {
                   </Table>
                 </div>
               )}
+
               {completionId ? (
                 <form
                   onSubmit={submitCompletion}
@@ -907,10 +1684,18 @@ function FactoryDashboard() {
                     value={outputVolume}
                     onChange={setOutputVolume}
                   />
-                  <NumericField label="Wastage (L)" min="0" value={wastage} onChange={setWastage} />
+
+                  <NumericField
+                    label="Wastage (L)"
+                    min="0"
+                    value={wastage}
+                    onChange={setWastage}
+                  />
+
                   <Button type="submit" className="self-end">
                     Complete run
                   </Button>
+
                   <Button
                     type="button"
                     variant="outline"
@@ -924,12 +1709,23 @@ function FactoryDashboard() {
             </section>
           </TabsContent>
 
+          {/* ========================================== */}
+          {/* INVENTORY */}
+          {/* ========================================== */}
+
           <TabsContent value="inventory" className="mt-5">
             <section className="panel p-5">
               <div className="mb-4 flex items-center gap-2">
-                <Boxes className="size-5 text-primary" aria-hidden />
-                <h2 className="text-lg font-semibold">Finished-product lots and stock movements</h2>
+                <Boxes
+                  className="size-5 text-primary"
+                  aria-hidden
+                />
+
+                <h2 className="text-lg font-semibold">
+                  Finished-product lots and stock movements
+                </h2>
               </div>
+
               {data.inventory.length === 0 ? (
                 <EmptyState message="No finished inventory is available yet." />
               ) : (
@@ -946,21 +1742,37 @@ function FactoryDashboard() {
                         <TableHead>Movements</TableHead>
                       </TableRow>
                     </TableHeader>
+
                     <TableBody>
                       {data.inventory.map((lot) => (
                         <TableRow key={lot.id}>
-                          <TableCell className="font-medium">{lot.lotId}</TableCell>
+                          <TableCell className="font-medium">
+                            {lot.lotId}
+                          </TableCell>
+
                           <TableCell>{lot.productName}</TableCell>
-                          <TableCell>{lot.processingBatch.batchId}</TableCell>
-                          <TableCell>{Number(lot.producedQuantityL).toFixed(3)}</TableCell>
-                          <TableCell>{Number(lot.currentQuantityL).toFixed(3)}</TableCell>
+
+                          <TableCell>
+                            {lot.processingBatch.batchId}
+                          </TableCell>
+
+                          <TableCell>
+                            {Number(lot.producedQuantityL).toFixed(3)}
+                          </TableCell>
+
+                          <TableCell>
+                            {Number(lot.currentQuantityL).toFixed(3)}
+                          </TableCell>
+
                           <TableCell>
                             <StatusBadge status={lot.status} />
                           </TableCell>
+
                           <TableCell>
                             {lot.movements
                               .map(
-                                (movement) => `${movement.movementType}: ${movement.quantityL} L`,
+                                (movement) =>
+                                  `${movement.movementType}: ${movement.quantityL} L`,
                               )
                               .join("; ") || "—"}
                           </TableCell>
@@ -973,15 +1785,27 @@ function FactoryDashboard() {
             </section>
           </TabsContent>
 
+          {/* ========================================== */}
+          {/* DISPATCH */}
+          {/* ========================================== */}
+
           <TabsContent value="dispatch" className="mt-5 space-y-5">
-            <form onSubmit={submitDispatch} className="panel space-y-4 p-5">
+            <form
+              onSubmit={submitDispatch}
+              className="panel space-y-4 p-5"
+            >
               <div>
-                <h2 className="text-lg font-semibold">Dispatch finished product</h2>
+                <h2 className="text-lg font-semibold">
+                  Dispatch finished product
+                </h2>
+
                 <p className="text-sm text-muted-foreground">
-                  Enter dispatch quantities; the server checks live lot balances and updates
-                  dispatch and inventory records atomically.
+                  Enter dispatch quantities; the server checks live lot
+                  balances and updates dispatch and inventory records
+                  atomically.
                 </p>
               </div>
+
               {availableLots.length === 0 ? (
                 <EmptyState message="No available finished-product stock to dispatch." />
               ) : (
@@ -991,9 +1815,10 @@ function FactoryDashboard() {
                     className="grid items-center gap-2 text-sm sm:grid-cols-[1fr_12rem]"
                   >
                     <span>
-                      {lot.lotId} · {lot.productName} · {Number(lot.currentQuantityL).toFixed(3)} L
-                      available
+                      {lot.lotId} · {lot.productName} ·{" "}
+                      {Number(lot.currentQuantityL).toFixed(3)} L available
                     </span>
+
                     <Input
                       aria-label={`Dispatch quantity for ${lot.lotId}`}
                       type="number"
@@ -1012,31 +1837,47 @@ function FactoryDashboard() {
                   </label>
                 ))
               )}
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="space-y-1 text-sm font-medium">
                   Destination
+
                   <Input
                     required
                     maxLength={500}
                     value={destination}
-                    onChange={(event) => setDestination(event.target.value)}
+                    onChange={(event) =>
+                      setDestination(event.target.value)
+                    }
                   />
                 </label>
+
                 <label className="space-y-1 text-sm font-medium">
                   Transport details
+
                   <Input
                     maxLength={2000}
                     value={transportDetails}
-                    onChange={(event) => setTransportDetails(event.target.value)}
+                    onChange={(event) =>
+                      setTransportDetails(event.target.value)
+                    }
                   />
                 </label>
               </div>
-              <Button type="submit" disabled={availableLots.length === 0}>
+
+              <Button
+                type="submit"
+                disabled={availableLots.length === 0}
+              >
                 Record dispatch
               </Button>
             </form>
+
             <section className="panel p-5">
-              <h2 className="text-lg font-semibold">Dispatch history</h2>
+              <h2 className="text-lg font-semibold">
+                Dispatch history
+              </h2>
+
               {data.dispatches.length === 0 ? (
                 <EmptyState message="No dispatches recorded." />
               ) : (
@@ -1052,18 +1893,35 @@ function FactoryDashboard() {
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
+
                     <TableBody>
                       {data.dispatches.map((dispatch) => (
                         <TableRow key={dispatch.id}>
-                          <TableCell>{dispatch.dispatchId}</TableCell>
-                          <TableCell>{formatDate(dispatch.dispatchedAt)}</TableCell>
-                          <TableCell>{dispatch.destination}</TableCell>
+                          <TableCell>
+                            {dispatch.dispatchId}
+                          </TableCell>
+
+                          <TableCell>
+                            {formatDate(dispatch.dispatchedAt)}
+                          </TableCell>
+
+                          <TableCell>
+                            {dispatch.destination}
+                          </TableCell>
+
                           <TableCell>
                             {dispatch.items
-                              .map((item) => `${item.productLot.lotId}: ${item.quantityL} L`)
+                              .map(
+                                (item) =>
+                                  `${item.productLot.lotId}: ${item.quantityL} L`,
+                              )
                               .join(", ")}
                           </TableCell>
-                          <TableCell>{dispatch.createdBy.name}</TableCell>
+
+                          <TableCell>
+                            {dispatch.createdBy.name}
+                          </TableCell>
+
                           <TableCell>
                             <StatusBadge status={dispatch.status} />
                           </TableCell>
@@ -1076,24 +1934,42 @@ function FactoryDashboard() {
             </section>
           </TabsContent>
 
+          {/* ========================================== */}
+          {/* TRACEABILITY */}
+          {/* ========================================== */}
+
           <TabsContent value="traceability" className="mt-5">
             <section className="panel p-5">
               <div className="mb-4 flex items-center gap-2">
-                <FileSearch className="size-5 text-primary" aria-hidden />
+                <FileSearch
+                  className="size-5 text-primary"
+                  aria-hidden
+                />
+
                 <h2 className="text-lg font-semibold">
                   Trace a milk batch, product lot, or dispatch
                 </h2>
               </div>
-              <form onSubmit={submitTrace} className="flex flex-col gap-3 sm:flex-row">
+
+              <form
+                onSubmit={submitTrace}
+                className="flex flex-col gap-3 sm:flex-row"
+              >
                 <Input
                   required
                   value={traceQuery}
-                  onChange={(event) => setTraceQuery(event.target.value)}
+                  onChange={(event) =>
+                    setTraceQuery(event.target.value)
+                  }
                   placeholder="Enter a batch, lot, or dispatch ID"
                   aria-label="Traceability identifier"
                 />
-                <Button type="submit">Search traceability</Button>
+
+                <Button type="submit">
+                  Search traceability
+                </Button>
               </form>
+
               {traceError ? (
                 <p
                   role="alert"
@@ -1102,19 +1978,26 @@ function FactoryDashboard() {
                   {traceError}
                 </p>
               ) : null}
+
               {traceResult ? (
                 <pre className="mt-5 max-h-[36rem] overflow-auto rounded-lg bg-surface p-4 text-xs leading-relaxed">
                   {JSON.stringify(traceResult, null, 2)}
                 </pre>
               ) : null}
+
               {!traceResult && !traceError ? (
                 <p className="mt-4 text-sm text-muted-foreground">
-                  Trace results include source collection, receipt, inspection, production, product
-                  lots, and any dispatches available to this factory.
+                  Trace results include source collection, receipt,
+                  inspection, production, product lots, and any
+                  dispatches available to this factory.
                 </p>
               ) : null}
             </section>
           </TabsContent>
+
+          {/* ========================================== */}
+          {/* REPORTS */}
+          {/* ========================================== */}
 
           <TabsContent value="reports" className="mt-5 space-y-5">
             <form
@@ -1123,40 +2006,64 @@ function FactoryDashboard() {
             >
               <label className="space-y-1 text-sm font-medium">
                 From
+
                 <Input
                   type="date"
                   value={reportFrom}
-                  onChange={(event) => setReportFrom(event.target.value)}
+                  onChange={(event) =>
+                    setReportFrom(event.target.value)
+                  }
                 />
               </label>
+
               <label className="space-y-1 text-sm font-medium">
                 To
+
                 <Input
                   type="date"
                   value={reportTo}
-                  onChange={(event) => setReportTo(event.target.value)}
+                  onChange={(event) =>
+                    setReportTo(event.target.value)
+                  }
                 />
               </label>
+
               <Button type="submit" className="self-end">
                 Apply date filter
               </Button>
             </form>
+
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatCard label="Intake receipts" value={data.reports.receipts.length} icon={Boxes} />
+              <StatCard
+                label="Intake receipts"
+                value={data.reports.receipts.length}
+                icon={Boxes}
+              />
+
               <StatCard
                 label="Inspections"
                 value={data.reports.inspections.length}
                 icon={ClipboardCheck}
               />
+
               <StatCard
                 label="Production runs"
                 value={data.reports.productionRuns.length}
                 icon={FactoryIcon}
               />
-              <StatCard label="Dispatches" value={data.reports.dispatches.length} icon={Truck} />
+
+              <StatCard
+                label="Dispatches"
+                value={data.reports.dispatches.length}
+                icon={Truck}
+              />
             </div>
+
             <section className="panel p-5">
-              <h2 className="text-lg font-semibold">Report records</h2>
+              <h2 className="text-lg font-semibold">
+                Report records
+              </h2>
+
               {data.reports.receipts.length === 0 &&
               data.reports.productionRuns.length === 0 &&
               data.reports.dispatches.length === 0 ? (
@@ -1175,15 +2082,31 @@ function FactoryDashboard() {
                             <TableHead>Inspection</TableHead>
                           </TableRow>
                         </TableHeader>
+
                         <TableBody>
                           {data.reports.receipts.map((receipt) => (
                             <TableRow key={receipt.id}>
-                              <TableCell>{receipt.milkBatch.batchId}</TableCell>
-                              <TableCell>{receipt.milkBatch.collectionCentre.name}</TableCell>
-                              <TableCell>{formatDate(receipt.receivedAt)}</TableCell>
-                              <TableCell>{Number(receipt.receivedQuantityL).toFixed(3)}</TableCell>
                               <TableCell>
-                                {receipt.milkBatch.qualityInspections[0]?.status ?? "Pending"}
+                                {receipt.milkBatch.batchId}
+                              </TableCell>
+
+                              <TableCell>
+                                {receipt.milkBatch.collectionCentre.name}
+                              </TableCell>
+
+                              <TableCell>
+                                {formatDate(receipt.receivedAt)}
+                              </TableCell>
+
+                              <TableCell>
+                                {Number(
+                                  receipt.receivedQuantityL,
+                                ).toFixed(3)}
+                              </TableCell>
+
+                              <TableCell>
+                                {receipt.milkBatch.qualityInspections[0]
+                                  ?.status ?? "Pending"}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1191,6 +2114,7 @@ function FactoryDashboard() {
                       </Table>
                     </ReportSection>
                   ) : null}
+
                   {data.reports.productLots.length ? (
                     <ReportSection title="Finished product and inventory">
                       <Table>
@@ -1202,12 +2126,18 @@ function FactoryDashboard() {
                             <TableHead>Status</TableHead>
                           </TableRow>
                         </TableHeader>
+
                         <TableBody>
                           {data.reports.productLots.map((lot) => (
                             <TableRow key={lot.id}>
                               <TableCell>{lot.lotId}</TableCell>
-                              <TableCell>{lot.producedQuantityL}</TableCell>
-                              <TableCell>{lot.currentQuantityL}</TableCell>
+                              <TableCell>
+                                {lot.producedQuantityL}
+                              </TableCell>
+                              <TableCell>
+                                {lot.currentQuantityL}
+                              </TableCell>
+
                               <TableCell>
                                 <StatusBadge status={lot.status} />
                               </TableCell>
@@ -1217,6 +2147,7 @@ function FactoryDashboard() {
                       </Table>
                     </ReportSection>
                   ) : null}
+
                   {data.reports.dispatches.length ? (
                     <ReportSection title="Dispatch history">
                       <Table>
@@ -1228,13 +2159,25 @@ function FactoryDashboard() {
                             <TableHead>Items</TableHead>
                           </TableRow>
                         </TableHeader>
+
                         <TableBody>
                           {data.reports.dispatches.map((dispatch) => (
                             <TableRow key={dispatch.id}>
-                              <TableCell>{dispatch.dispatchId}</TableCell>
-                              <TableCell>{formatDate(dispatch.dispatchedAt)}</TableCell>
-                              <TableCell>{dispatch.destination}</TableCell>
-                              <TableCell>{dispatch.items.length}</TableCell>
+                              <TableCell>
+                                {dispatch.dispatchId}
+                              </TableCell>
+
+                              <TableCell>
+                                {formatDate(dispatch.dispatchedAt)}
+                              </TableCell>
+
+                              <TableCell>
+                                {dispatch.destination}
+                              </TableCell>
+
+                              <TableCell>
+                                {dispatch.items.length}
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -1251,6 +2194,10 @@ function FactoryDashboard() {
   );
 }
 
+// --------------------------------------------------
+// REUSABLE COMPONENTS
+// --------------------------------------------------
+
 function NumericField({
   label,
   value,
@@ -1265,6 +2212,7 @@ function NumericField({
   return (
     <label className="space-y-1 text-sm font-medium">
       {label}
+
       <Input
         required
         type="number"
@@ -1278,10 +2226,20 @@ function NumericField({
 }
 
 function EmptyState({ message }: { message: string }) {
-  return <p className="py-6 text-center text-sm text-muted-foreground">{message}</p>;
+  return (
+    <p className="py-6 text-center text-sm text-muted-foreground">
+      {message}
+    </p>
+  );
 }
 
-function ReportSection({ title, children }: { title: string; children: ReactNode }) {
+function ReportSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   return (
     <section>
       <h3 className="mb-2 font-semibold">{title}</h3>

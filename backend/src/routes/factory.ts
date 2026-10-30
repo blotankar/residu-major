@@ -154,6 +154,233 @@ function dateFilter(url: URL) {
   return Object.keys(date).length ? date : undefined;
 }
 
+const addIntakeSchema = z.object({
+  milkBatchIds: z.array(nonEmptyString).min(1).max(100),
+});
+
+// Search collection centres by name or code
+async function searchCollectionCentres(url: URL) {
+  const search = url.searchParams.get("search")?.trim();
+
+  if (!search) {
+    return json([]);
+  }
+
+  const centres = await prisma.collectionCentre.findMany({
+    where: {
+      OR: [
+        {
+          name: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          code: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      village: true,
+      address: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+    take: 20,
+  });
+
+  return json(centres);
+}
+
+// Fetch available milk batches from the selected centre
+async function fetchCentreBatches(centreId: string) {
+  const centre = await prisma.collectionCentre.findUnique({
+    where: { id: centreId },
+  });
+
+  if (!centre) {
+    return json({ error: "Collection centre not found." }, 404);
+  }
+
+  const batches = await prisma.milkBatch.findMany({
+    where: {
+      collectionCentreId: centreId,
+      status: "SAFE",
+      factoryIntake: null,
+      factoryReceipt: null,
+      processingBatches: {
+        none: {},
+      },
+    },
+    include: {
+      collectionCentre: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          village: true,
+        },
+      },
+    },
+    orderBy: {
+      date: "desc",
+    },
+  });
+
+  return json(batches);
+}
+
+// Add selected batches to this factory's intake
+async function addBatchesToIntake(
+  req: Request,
+  user: AuthenticatedUser,
+  factory: FactoryProfile,
+) {
+  const body = addIntakeSchema.safeParse(await parseJson(req));
+
+  if (!body.success) {
+    return validationError(body.error);
+  }
+
+  const milkBatchIds = body.data.milkBatchIds;
+
+  if (new Set(milkBatchIds).size !== milkBatchIds.length) {
+    return json(
+      { error: "Duplicate milk batch IDs are not allowed." },
+      400,
+    );
+  }
+
+  const batches = await prisma.milkBatch.findMany({
+    where: {
+      id: {
+        in: milkBatchIds,
+      },
+    },
+    include: {
+      factoryIntake: true,
+      factoryReceipt: true,
+      processingBatches: true,
+    },
+  });
+
+  if (batches.length !== milkBatchIds.length) {
+    return json(
+      { error: "One or more selected batches were not found." },
+      404,
+    );
+  }
+
+  const unavailable = batches.find(
+    (batch) =>
+      batch.status !== "SAFE" ||
+      batch.factoryIntake !== null ||
+      batch.factoryReceipt !== null ||
+      batch.processingBatches.length > 0,
+  );
+
+  if (unavailable) {
+    return json(
+      {
+        error: `Batch ${unavailable.batchId} is no longer available. Refresh and try again.`,
+      },
+      409,
+    );
+  }
+
+  try {
+    const intakeRecords = await prisma.$transaction(
+      async (tx) => {
+        const currentBatches = await tx.milkBatch.findMany({
+          where: {
+            id: {
+              in: milkBatchIds,
+            },
+            status: "SAFE",
+            factoryIntake: null,
+            factoryReceipt: null,
+            processingBatches: {
+              none: {},
+            },
+          },
+          select: {
+            id: true,
+            batchId: true,
+          },
+        });
+
+        if (currentBatches.length !== milkBatchIds.length) {
+          throw new FactoryConflictError(
+            "One or more batches are no longer available.",
+          );
+        }
+
+        const created = await Promise.all(
+          currentBatches.map((batch) =>
+            tx.factoryMilkBatchIntake.create({
+              data: {
+                factoryId: factory.id,
+                milkBatchId: batch.id,
+                addedByUserId: user.userId,
+              },
+            }),
+          ),
+        );
+
+        await recordActivity(
+          tx,
+          factory,
+          "MILK_BATCHES_ADDED_TO_INTAKE",
+          "factory_operation",
+          factory.id,
+          {
+            milkBatchIds: currentBatches.map((batch) => batch.id),
+            batchIds: currentBatches.map((batch) => batch.batchId),
+            count: created.length,
+          },
+        );
+
+        return created;
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+
+    return json(
+      {
+        message: "Batches added to factory intake successfully.",
+        count: intakeRecords.length,
+        intakeRecords,
+      },
+      201,
+    );
+  } catch (error) {
+    if (
+      error instanceof FactoryConflictError ||
+      isUniqueViolation(error) ||
+      isSerializationConflict(error)
+    ) {
+      return json(
+        {
+          error:
+            "Some batches are no longer available. Refresh and try again.",
+        },
+        409,
+      );
+    }
+
+    throw error;
+  }
+}
+
 async function dashboard(factory: FactoryProfile) {
   const now = new Date();
   const startOfToday = new Date(now);
@@ -261,61 +488,110 @@ async function dashboard(factory: FactoryProfile) {
 async function listIntake(factory: FactoryProfile, url: URL) {
   const search = url.searchParams.get("search")?.trim();
   const status = url.searchParams.get("status");
-  const where = {
-    AND: [
-      {
-        OR: [
-          { factoryReceipt: null },
-          { factoryReceipt: { factoryId: factory.id } },
-        ],
-      },
-      ...(search
-        ? [
-            {
-              OR: [
-                { batchId: { contains: search, mode: "insensitive" as const } },
-                {
-                  collectionCentre: {
-                    OR: [
-                      { name: { contains: search, mode: "insensitive" as const } },
-                      { code: { contains: search, mode: "insensitive" as const } },
-                    ],
-                  },
-                },
-              ],
-            },
-          ]
-        : []),
-    ],
-  };
 
   const batches = await prisma.milkBatch.findMany({
-    where,
-    include: {
-      collectionCentre: { select: { id: true, name: true, code: true, village: true } },
-      factoryReceipt: true,
-      qualityInspections: {
-        orderBy: { inspectedAt: "desc" },
-        take: 1,
-        include: { inspector: { select: { name: true } } },
+    where: {
+      factoryIntake: {
+        is: {
+          factoryId: factory.id,
+        },
       },
-      processingBatches: { select: { id: true } },
+
+      ...(search
+        ? {
+            OR: [
+              {
+                batchId: {
+                  contains: search,
+                  mode: "insensitive" as const,
+                },
+              },
+              {
+                collectionCentre: {
+                  OR: [
+                    {
+                      name: {
+                        contains: search,
+                        mode: "insensitive" as const,
+                      },
+                    },
+                    {
+                      code: {
+                        contains: search,
+                        mode: "insensitive" as const,
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          }
+        : {}),
     },
-    orderBy: { date: "desc" },
+
+    include: {
+      collectionCentre: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          village: true,
+        },
+      },
+
+      factoryIntake: true,
+      factoryReceipt: true,
+
+      qualityInspections: {
+        orderBy: {
+          inspectedAt: "desc",
+        },
+        take: 1,
+        include: {
+          inspector: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+
+      processingBatches: {
+        select: {
+          id: true,
+        },
+      },
+    },
+
+    orderBy: {
+      date: "desc",
+    },
+
     take: 500,
   });
-  const filtered = batches.filter((batch) => {
-    if (status === "PENDING_RECEIPT") return !batch.factoryReceipt;
-    if (status === "RECEIVED") return Boolean(batch.factoryReceipt);
-    if (status === "PENDING_INSPECTION") {
-      return Boolean(batch.factoryReceipt) && batch.qualityInspections.length === 0;
+
+  return batches.filter((batch) => {
+    if (status === "PENDING_RECEIPT") {
+      return !batch.factoryReceipt;
     }
+
+    if (status === "RECEIVED") {
+      return Boolean(batch.factoryReceipt);
+    }
+
+    if (status === "PENDING_INSPECTION") {
+      return (
+        Boolean(batch.factoryReceipt) &&
+        batch.qualityInspections.length === 0
+      );
+    }
+
     if (["ACCEPTED", "ON_HOLD", "REJECTED"].includes(status ?? "")) {
       return batch.qualityInspections[0]?.status === status;
     }
+
     return true;
   });
-  return filtered;
 }
 
 async function receiveBatch(
@@ -325,24 +601,62 @@ async function receiveBatch(
   batchId: string,
 ) {
   const body = receiptSchema.safeParse(await parseJson(req));
-  if (!body.success) return validationError(body.error);
+
+  if (!body.success) {
+    return validationError(body.error);
+  }
 
   const batch = await prisma.milkBatch.findUnique({
-    where: { id: batchId },
-    include: { factoryReceipt: true, processingBatches: true },
+    where: {
+      id: batchId,
+    },
+    include: {
+      factoryIntake: true,
+      factoryReceipt: true,
+      processingBatches: true,
+    },
   });
-  if (!batch) return json({ error: "Milk batch not found." }, 404);
-  if (batch.factoryReceipt) {
-    return json({ error: "This milk batch has already been received." }, 409);
+
+  if (!batch) {
+    return json({ error: "Milk batch not found." }, 404);
   }
-  if (batch.status !== "SAFE" || batch.processingBatches.length) {
-    return json({ error: "This milk batch is not available for factory receipt." }, 409);
+
+  if (
+    !batch.factoryIntake ||
+    batch.factoryIntake.factoryId !== factory.id
+  ) {
+    return json(
+      {
+        error: "This batch has not been added to your factory intake.",
+      },
+      403,
+    );
+  }
+
+  if (batch.factoryReceipt) {
+    return json(
+      { error: "This milk batch has already been received." },
+      409,
+    );
+  }
+
+  if (batch.status !== "SAFE" || batch.processingBatches.length > 0) {
+    return json(
+      {
+        error: "This milk batch is not available for factory receipt.",
+      },
+      409,
+    );
   }
 
   const receivedAt = body.data.receivedAt
     ? new Date(body.data.receivedAt)
     : new Date();
-  const discrepancy = Math.abs(Number(batch.volumeL) - body.data.receivedQuantityL);
+
+  const discrepancy = Math.abs(
+    Number(batch.volumeL) - body.data.receivedQuantityL,
+  );
+
   const discrepancyNote =
     discrepancy > 0
       ? body.data.discrepancyNote?.trim() ||
@@ -361,19 +675,33 @@ async function receiveBatch(
           receivedByUserId: user.userId,
         },
       });
-      await recordActivity(tx, factory, "MILK_BATCH_RECEIVED", "milk_batch", batch.id, {
-        batchId: batch.batchId,
-        receivedQuantityL: body.data.receivedQuantityL,
-        collectionQuantityL: batch.volumeL,
-        discrepancyNote,
-      });
+
+      await recordActivity(
+        tx,
+        factory,
+        "MILK_BATCH_RECEIVED",
+        "milk_batch",
+        batch.id,
+        {
+          batchId: batch.batchId,
+          receivedQuantityL: body.data.receivedQuantityL,
+          collectionQuantityL: batch.volumeL,
+          discrepancyNote,
+        },
+      );
+
       return created;
     });
+
     return json({ receipt }, 201);
   } catch (error) {
     if (isUniqueViolation(error)) {
-      return json({ error: "This milk batch has already been received." }, 409);
+      return json(
+        { error: "This milk batch has already been received." },
+        409,
+      );
     }
+
     throw error;
   }
 }
@@ -959,6 +1287,34 @@ export async function handleFactoryRequest(
     if (req.method === "GET" && resource === "dashboard" && !id) {
       return json(await dashboard(factory));
     }
+
+    // Search collection centres
+if (
+  req.method === "GET" &&
+  resource === "collection-centres" &&
+  (id === "search" || !id)
+) {
+  return searchCollectionCentres(url);
+}
+
+// Fetch batches belonging to a selected collection centre
+if (
+  req.method === "GET" &&
+  resource === "collection-centres" &&
+  id &&
+  action === "batches"
+) {
+  return fetchCentreBatches(id);
+}
+
+// Add selected batches to factory intake
+if (
+  req.method === "POST" &&
+  resource === "intake" &&
+  id === "add"
+) {
+  return addBatchesToIntake(req, user, factory);
+}
     if (req.method === "GET" && resource === "intake" && !id) {
       return json(await listIntake(factory, url));
     }

@@ -77,6 +77,7 @@ model User {
   productionRuns     ProcessingBatch[]         @relation("ProductionOperator")
   dispatches         Dispatch[]                @relation("DispatchCreator")
   inventoryMovements InventoryMovement[]       @relation("InventoryRecorder")
+  factoryIntakeRegistrations FactoryMilkBatchIntake[] @relation("FactoryIntakeRegistrar")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -145,6 +146,7 @@ model Factory {
   processingBatches ProcessingBatch[]
   milkReceipts      FactoryMilkBatchReceipt[]
   dispatches        Dispatch[]
+  milkBatchIntakes FactoryMilkBatchIntake[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -193,6 +195,8 @@ model Cattle {
   @@map("Cattle")
 }
 
+
+
 model Treatment {
   id             String @id @default(uuid())
   cattleId       String
@@ -228,11 +232,27 @@ model MilkBatch {
   processingBatches   ProcessingMilkBatch[]
   factoryReceipt      FactoryMilkBatchReceipt?
   qualityInspections  MilkQualityInspection[]
+  factoryIntake FactoryMilkBatchIntake?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("milk_batches")
+}
+
+model FactoryMilkBatchIntake {
+  id          String   @id @default(uuid())
+  factoryId   String
+  milkBatchId String   @unique
+  addedAt     DateTime @default(now())
+  addedByUserId String
+
+  factory Factory   @relation(fields: [factoryId], references: [id])
+  milkBatch MilkBatch @relation(fields: [milkBatchId], references: [id])
+  addedBy User @relation("FactoryIntakeRegistrar", fields: [addedByUserId], references: [id])
+  
+  @@index([factoryId, addedAt])
+  @@map("factory_milk_batch_intakes")
 }
 
 model FactoryMilkBatchReceipt {
