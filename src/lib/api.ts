@@ -285,19 +285,54 @@ export type FactoryIntakeBatch = {
     receivedAt: string;
     discrepancyNote: string | null;
   } | null;
+  
   qualityInspections: {
-    id: string;
-    temperatureC: string;
-    fatPercent: string;
-    snfPercent: string;
-    acidityPercent: string;
-    adulterationResult: "PASS" | "FAIL" | "INCONCLUSIVE";
-    status: "ACCEPTED" | "ON_HOLD" | "REJECTED";
-    remarks: string | null;
-    inspectedAt: string;
-    inspector: { name: string };
-  }[];
+  id: string;
+  temperatureC: string;
+  fatPercent: string;
+  snfPercent: string;
+  acidityPercent: string;
+  qualityResult: "PASS" | "FAIL" | "INCONCLUSIVE";
+  status: "ACCEPTED" | "ON_HOLD" | "REJECTED";
+  remarks: string | null;
+  inspectedAt: string;
+  inspector: { name: string };
+}[];
   processingBatches: { id: string }[];
+};
+
+export type FactoryInspectionInput = {
+  temperatureC: number;
+  fatPercent: number;
+  snfPercent: number;
+  acidityPercent: number;
+  remarks?: string;
+  inspectedAt?: string;
+};
+
+export type FactoryInspection = {
+  id: string;
+  milkBatchId: string;
+  inspectorUserId: string;
+  temperatureC: string;
+  fatPercent: string;
+  snfPercent: string;
+  acidityPercent: string;
+  qualityResult: "PASS" | "FAIL" | "INCONCLUSIVE";
+  status: "ACCEPTED" | "ON_HOLD" | "REJECTED";
+  remarks: string | null;
+  inspectedAt: string;
+  createdAt: string;
+};
+
+export type FactoryInspectionResponse = {
+  message: string;
+  inspection: FactoryInspection;
+  decision: {
+    qualityResult: "PASS" | "FAIL" | "INCONCLUSIVE";
+    status: "ACCEPTED" | "ON_HOLD" | "REJECTED";
+    reasons: string[];
+  };
 };
 
 export type FactoryDashboardData = {
@@ -397,18 +432,18 @@ export type FactoryReportData = {
   productionRuns: FactoryProductionRun[];
   productLots: FactoryProductLot[];
   dispatches: FactoryDispatch[];
-  inspections: {
-    id: string;
-    status: string;
-    temperatureC: string;
-    fatPercent: string;
-    snfPercent: string;
-    acidityPercent: string;
-    adulterationResult: string;
-    inspectedAt: string;
-    milkBatch: { batchId: string };
-    inspector: { name: string };
-  }[];
+inspections: {
+  id: string;
+  status: string;
+  temperatureC: string;
+  fatPercent: string;
+  snfPercent: string;
+  acidityPercent: string;
+  qualityResult: "PASS" | "FAIL" | "INCONCLUSIVE";
+  inspectedAt: string;
+  milkBatch: { batchId: string };
+  inspector: { name: string };
+}[];
 };
 
 export type FactoryProductionCompletion = {
@@ -444,22 +479,19 @@ export function receiveFactoryBatch(
   });
 }
 
+
+
 export function inspectFactoryBatch(
   id: string,
-  input: {
-    temperatureC: number;
-    fatPercent: number;
-    snfPercent: number;
-    acidityPercent: number;
-    adulterationResult: "PASS" | "FAIL" | "INCONCLUSIVE";
-    status: "ACCEPTED" | "ON_HOLD" | "REJECTED";
-    remarks?: string;
-  },
-) {
-  return apiRequest(`/api/factory/intake/${encodeURIComponent(id)}/inspect`, {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  input: FactoryInspectionInput,
+): Promise<FactoryInspectionResponse> {
+  return apiRequest<FactoryInspectionResponse>(
+    `/api/factory/intake/${encodeURIComponent(id)}/inspect`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function fetchFactoryProduction() {

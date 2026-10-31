@@ -66,24 +66,28 @@ function calculateMilkQuality(data: {
   const rejected: string[] = [];
   const onHold: string[] = [];
 
-  if (data.fatPercent < 3.2) {
-    rejected.push("Fat is below the minimum of 3.2%.");
+  // FAT: Acceptable range 3.5% – 5.0%
+  if (data.fatPercent < 3.5) {
+    rejected.push("Fat is below the minimum of 3.5%.");
+  } else if (data.fatPercent > 5.0) {
+    rejected.push("Fat exceeds the maximum of 5.0%.");
   }
 
-  if (data.snfPercent < 8.3) {
-    rejected.push("SNF is below the minimum of 8.3%.");
+  // SNF: Acceptable range 8.0% – 9.0%
+  if (data.snfPercent < 8.0) {
+    rejected.push("SNF is below the minimum of 8.0%.");
+  } else if (data.snfPercent > 9.0) {
+    rejected.push("SNF exceeds the maximum of 9.0%.");
   }
 
-  if (data.temperatureC > 10) {
-    rejected.push("Temperature exceeds 10°C.");
-  } else if (data.temperatureC > 7) {
-    onHold.push("Temperature is in the borderline range (above 7°C to 10°C).");
+  // TEMPERATURE: Maximum 7°C
+  if (data.temperatureC > 7) {
+    rejected.push("Temperature exceeds the acceptable limit of 7°C.");
   }
 
-  if (data.acidityPercent > 0.16) {
-    rejected.push("Acidity exceeds 0.16%.");
-  } else if (data.acidityPercent > 0.14) {
-    onHold.push("Acidity is in the borderline range (above 0.14% to 0.16%).");
+  // ACIDITY: Maximum 0.14%
+  if (data.acidityPercent > 0.14) {
+    rejected.push("Acidity exceeds the acceptable limit of 0.14%.");
   }
 
   if (rejected.length > 0) {
@@ -94,13 +98,7 @@ function calculateMilkQuality(data: {
     };
   }
 
-  if (onHold.length > 0) {
-    return {
-      qualityResult: "INCONCLUSIVE",
-      status: "ON_HOLD",
-      reasons: onHold,
-    };
-  }
+  
 
   return {
     qualityResult: "PASS",

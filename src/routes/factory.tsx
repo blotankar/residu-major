@@ -71,8 +71,9 @@ export const Route = createFileRoute("/factory")({
       {
         name: "description",
         content:
-          "Manage milk intake, inspections, production, inventory, dispatch, and traceability.",
+          "Manage milk intake, inspections, production, inventory, dispatch",
       },
+
     ],
   }),
 
@@ -202,9 +203,9 @@ function FactoryDashboard() {
   const [transportDetails, setTransportDetails] = useState("");
 
   // Traceability
-  const [traceQuery, setTraceQuery] = useState("");
-  const [traceResult, setTraceResult] = useState<unknown>(null);
-  const [traceError, setTraceError] = useState<string | null>(null);
+  // const [traceQuery, setTraceQuery] = useState("");
+  // const [traceResult, setTraceResult] = useState<unknown>(null);
+  // const [traceError, setTraceError] = useState<string | null>(null);
 
   // Reports
   const [reportFrom, setReportFrom] = useState("");
@@ -657,24 +658,24 @@ function FactoryDashboard() {
   // TRACEABILITY
   // --------------------------------------------------
 
-  async function submitTrace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  // async function submitTrace(event: FormEvent<HTMLFormElement>) {
+  //   event.preventDefault();
 
-    setTraceError(null);
-    setTraceResult(null);
+  //   setTraceError(null);
+  //   setTraceResult(null);
 
-    try {
-      setTraceResult(
-        await fetchFactoryTrace(traceQuery.trim()),
-      );
-    } catch (err) {
-      setTraceError(
-        err instanceof Error
-          ? err.message
-          : "Traceability lookup failed.",
-      );
-    }
-  }
+  //   try {
+  //     setTraceResult(
+  //       await fetchFactoryTrace(traceQuery.trim()),
+  //     );
+  //   } catch (err) {
+  //     setTraceError(
+  //       err instanceof Error
+  //         ? err.message
+  //         : "Traceability lookup failed.",
+  //     );
+  //   }
+  // }
 
   // --------------------------------------------------
   // REPORT FILTER
@@ -754,7 +755,7 @@ function FactoryDashboard() {
             <TabsTrigger value="production">Production</TabsTrigger>
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
             <TabsTrigger value="dispatch">Dispatch</TabsTrigger>
-            <TabsTrigger value="traceability">Traceability</TabsTrigger>
+            {/* <TabsTrigger value="traceability">Traceability</TabsTrigger> */}
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
@@ -1386,37 +1387,37 @@ function FactoryDashboard() {
                   <div className="rounded-md bg-background p-3">
                     <p className="text-sm font-medium">Fat</p>
                     <p className="text-sm text-muted-foreground">
-                      Minimum 3.2%
+    Acceptable: 3.5% – 5.0%
                     </p>
                   </div>
 
                   <div className="rounded-md bg-background p-3">
                     <p className="text-sm font-medium">SNF</p>
                     <p className="text-sm text-muted-foreground">
-                      Minimum 8.3%
+                          Acceptable: 8.0% – 9.0%
                     </p>
                   </div>
 
                   <div className="rounded-md bg-background p-3">
                     <p className="text-sm font-medium">Temperature</p>
                     <p className="text-sm text-muted-foreground">
-                      Accepted: up to 7°C
+    Excellent: up to 4°C
                       <br />
-                      On hold: above 7°C to 10°C
+    Acceptable: above 4°C to 7°C
                       <br />
-                      Rejected: above 10°C
+    Rejected: above 7°C
                     </p>
                   </div>
 
                   <div className="rounded-md bg-background p-3">
                     <p className="text-sm font-medium">Acidity</p>
                     <p className="text-sm text-muted-foreground">
-                      Accepted: up to 0.14%
-                      <br />
-                      On hold: above 0.14% to 0.16%
-                      <br />
-                      Rejected: above 0.16%
-                    </p>
+    Very fresh: up to 0.13%
+    <br />
+    Fresh — accept: above 0.13% to 0.14%
+    <br />
+    Rejected: above 0.14%
+  </p>
                   </div>
                 </div>
 
@@ -1945,7 +1946,7 @@ function FactoryDashboard() {
           {/* TRACEABILITY */}
           {/* ========================================== */}
 
-          <TabsContent value="traceability" className="mt-5">
+          {/* <TabsContent value="traceability" className="mt-5">
             <section className="panel p-5">
               <div className="mb-4 flex items-center gap-2">
                 <FileSearch
@@ -2000,7 +2001,7 @@ function FactoryDashboard() {
                 </p>
               ) : null}
             </section>
-          </TabsContent>
+          </TabsContent> */}
 
           {/* ========================================== */}
           {/* REPORTS */}
