@@ -1,0 +1,268 @@
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Fraunces:ital,opsz,wght@1,9..144,600;1,9..144,700&display=swap");@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&display=swap");
+
+.rg {
+  --forest: #173f35;
+  --deep: #245b45;
+  --sage: #a7bfa7;
+  --light-sage: #e8f0e8;
+  --cream: #f7f6ef;
+  --white: #fff;
+  --charcoal: #202c25;
+
+  position: relative;
+  box-sizing: border-box;
+  height: 100svh;
+  min-height: 560px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(380px, 5fr) 7fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "logo  photo"
+    "copy  photo";
+  column-gap: clamp(24px, 4vw, 72px);
+  padding: clamp(20px, 3.2vw, 44px);
+  background: var(--cream);
+  color: var(--charcoal);
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+}
+
+.rg::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 62%;
+  background: var(--light-sage);
+  border-bottom-left-radius: 50% 22%;
+  z-index: 0;
+}
+
+.rg > * {
+  position: relative;
+  z-index: 1;
+}
+
+.rg-logo {
+  grid-area: logo;
+  justify-self: start;
+  display: block;
+  width: clamp(90px, 12vh, 128px);
+  aspect-ratio: 1;
+  margin: -14px 0 0 -10px; /* moves it up and slightly left */
+  cursor: pointer;
+}
+.rg-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  mix-blend-mode: multiply; /* makes the PNG's white background disappear */
+}
+.rg-logo:focus-visible {
+  outline: 3px solid var(--deep);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.rg-photo {
+  grid-area: photo;
+  margin: 0;
+  position: relative;
+  min-height: 0;
+  border-radius: clamp(120px, 20vw, 300px) 28px 28px 28px;
+  overflow: hidden;
+  box-shadow: 0 40px 80px -40px rgba(23, 63, 53, 0.55);
+  animation: rg-reveal 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.rg-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(23, 63, 53, 0.28), transparent 35%);
+  pointer-events: none;
+}
+.rg-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 52% 50%;
+}
+.rg-photo figcaption {
+  position: absolute;
+  left: 22px;
+  bottom: 22px;
+  z-index: 2;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(247, 246, 239, 0.92);
+  color: var(--forest);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rg-copy {
+  grid-area: copy;
+  align-self: end;
+  padding-bottom: clamp(0px, 2vh, 24px);
+}
+.rg h1 {
+  font-family: inherit;
+  margin: 0;
+  font-size: clamp(3rem, min(6vw, 10vh), 6.2rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  font-weight: 700;
+  color: var(--forest);
+}
+
+.rg .rg-tagline {
+  margin: clamp(14px, 2.4vh, 22px) 0 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(1.3rem, min(2.2vw, 4vh), 2rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--deep);
+  opacity: 1;
+}
+
+.rg .rg-sub {
+  margin: clamp(12px, 2vh, 18px) 0 0;
+  font-size: clamp(0.85rem, 1.05vw, 1rem);
+  letter-spacing: 0.02em;
+  color: var(--charcoal);
+  opacity: 0.65;
+}
+
+.rg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: clamp(22px, 4vh, 40px);
+}
+.rg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 8px 8px 28px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 1.02rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1.5px solid var(--forest);
+  transition: background-color 0.25s, color 0.25s, transform 0.25s;
+}
+.rg-btn__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  transition: transform 0.25s;
+}
+.rg-btn:hover .rg-btn__icon {
+  transform: translate(2px, -2px);
+}
+.rg-btn--solid {
+  background: var(--forest);
+  color: var(--cream);
+}
+.rg-btn--solid .rg-btn__icon {
+  background: var(--sage);
+  color: var(--forest);
+}
+.rg-btn--solid:hover {
+  background: var(--deep);
+  border-color: var(--deep);
+}
+.rg-btn--ghost {
+  background: var(--white);
+  color: var(--forest);
+}
+.rg-btn--ghost .rg-btn__icon {
+  background: var(--light-sage);
+}
+.rg-btn--ghost:hover {
+  background: var(--forest);
+  color: var(--cream);
+}
+.rg-btn:focus-visible {
+  outline: 3px solid var(--deep);
+  outline-offset: 3px;
+}
+
+@keyframes rg-reveal {
+  from {
+    clip-path: inset(0 0 100% 0 round 28px);
+    transform: scale(1.03);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round 28px);
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rg-photo {
+    animation: none;
+  }
+  .rg-btn,
+  .rg-btn__icon {
+    transition: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .rg {
+    height: auto;
+    min-height: 100svh;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(220px, 1fr) auto;
+    grid-template-areas: "logo" "photo" "copy";
+    row-gap: 18px;
+    padding: 18px;
+  }
+  .rg::before {
+    width: 100%;
+    height: 55%;
+    bottom: auto;
+    border-bottom-left-radius: 50% 18%;
+    border-bottom-right-radius: 50% 18%;
+  }
+  .rg-logo {
+  width: 76px;
+  margin: -8px 0 0 -6px;
+  }
+  .rg-photo {
+    border-radius: 999px 999px 24px 24px;
+    max-height: 46svh;
+  }
+  .rg-photo img {
+    object-position: 55% 50%;
+  }
+  .rg-photo figcaption {
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    bottom: 16px;
+  }
+  .rg h1 { font-size: clamp(2.4rem, 12vw, 3.4rem); }
+  .rg .rg-tagline { font-size: clamp(1.15rem, 5vw, 1.45rem); }
+  .rg-copy {
+    padding-bottom: 4px;
+  }
+  .rg-actions {
+    gap: 10px;
+  }
+  .rg-btn {
+    flex: 1 1 150px;
+    justify-content: space-between;
+    padding-left: 22px;
+  }
+}
