@@ -50,3 +50,5 @@ backend/.env
 # Python / temporary files
 __pycache__/
 *.pyc
+# Hyperledger Fabric credentials
+backend/certs/

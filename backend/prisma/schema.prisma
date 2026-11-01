@@ -86,10 +86,12 @@ model User {
 }
 
 model Farmer {
-  id      String  @id @default(uuid())
-  userId  String  @unique
-  village String
-  phone   String?
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  village      String
+  phone        String?
+  farmName     String?
+  farmLocation String?
 
   user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   cattle Cattle[]
@@ -147,11 +149,29 @@ model Factory {
   milkReceipts      FactoryMilkBatchReceipt[]
   dispatches        Dispatch[]
   milkBatchIntakes FactoryMilkBatchIntake[]
+  transportations MilkBatchTransport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("factories")
+}
+
+model MilkBatchTransport {
+  id          String   @id @default(uuid())
+  milkBatchId String   @unique
+  factoryId   String
+  vehicleId   String
+  dispatchedAt DateTime
+  arrivedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  milkBatch MilkBatch @relation(fields: [milkBatchId], references: [id])
+  factory   Factory   @relation(fields: [factoryId], references: [id])
+
+  @@index([factoryId, dispatchedAt])
+  @@map("milk_batch_transportations")
 }
 
 model Authority {
@@ -233,6 +253,7 @@ model MilkBatch {
   factoryReceipt      FactoryMilkBatchReceipt?
   qualityInspections  MilkQualityInspection[]
   factoryIntake FactoryMilkBatchIntake?
+  transportation MilkBatchTransport?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -382,6 +403,7 @@ model Dispatch {
   destination      String
   dispatchedAt     DateTime
   transportDetails String?
+  vehicleId        String?
   status           DispatchStatus @default(DISPATCHED)
   createdByUserId  String
   createdAt        DateTime       @default(now())

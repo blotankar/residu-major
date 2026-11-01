@@ -130,8 +130,10 @@ export async function register(req: Request): Promise<Response> {
 
     const phone = normalizeString(body.phone) || null;
 
-    // Validate role-specific information before writing to the database.
+    // Role-specific profile information.
     let village = "";
+    let farmName = "";
+    let farmLocation = "";
     let licenseNo = "";
     let centreCode = "";
     let centreVillage = "";
@@ -139,13 +141,19 @@ export async function register(req: Request): Promise<Response> {
     let factoryCode = "";
     let factoryAddress = "";
 
+    // Validate role-specific information before writing to the database.
     switch (role) {
       case UserRole.FARMER:
         village = normalizeString(body.village);
+        farmName = normalizeString(body.farmName);
+        farmLocation = normalizeString(body.farmLocation);
 
-        if (!village) {
+        if (!village || !farmName || !farmLocation) {
           return json(
-            { error: "Village is required for farmers." },
+            {
+              error:
+                "Village, farm name, and farm location are required for farmers.",
+            },
             400,
           );
         }
@@ -228,6 +236,8 @@ export async function register(req: Request): Promise<Response> {
               userId: createdUser.id,
               village,
               phone,
+              farmName,
+              farmLocation,
             },
           });
           break;

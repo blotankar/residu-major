@@ -1,6 +1,8 @@
+
 import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../lib/prisma";
 import type { AuthenticatedUser } from "../lib/auth-middleware";
+import { submitFabricTransaction } from "../services/fabric";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,6 +30,8 @@ async function getCentre(user: AuthenticatedUser) {
       id: true,
       name: true,
       code: true,
+      village: true,
+      address: true,
     },
   });
 }
@@ -49,25 +53,20 @@ export async function handleCollectionCentreFarmerRequest(
     const url = new URL(req.url);
 
     // GET: COLLECTION CENTRE PROFILE
-if (
-  req.method === "GET" &&
-  url.pathname === "/api/collection-centre/profile"
-) {
-  return json({
-    id: centre.id,
-    name: centre.name,
-    code: centre.code,
-    village: null,
-    phone: null,
-  });
-}
+    if (
+      req.method === "GET" &&
+      url.pathname === "/api/collection-centre/profile"
+    ) {
+      return json({
+        id: centre.id,
+        name: centre.name,
+        code: centre.code,
+        village: centre.village,
+        phone: null,
+      });
+    }
 
-    // ==========================================
     // GET: SEARCH FARMERS BY ID OR NAME
-    // Returns all registered cattle belonging
-    // to each matching farmer.
-    // ==========================================
-
     if (
       req.method === "GET" &&
       url.pathname === "/api/collection-centre/farmers/search"
@@ -107,19 +106,16 @@ if (
         where: {
           OR: farmerConditions,
         },
-
         select: {
           id: true,
           userId: true,
           village: true,
           phone: true,
-
           user: {
             select: {
               name: true,
             },
           },
-
           cattle: {
             select: {
               id: true,
@@ -132,9 +128,7 @@ if (
             },
           },
         },
-
         take: 50,
-
         orderBy: {
           createdAt: "desc",
         },
@@ -147,15 +141,12 @@ if (
           name: farmer.user.name,
           village: farmer.village,
           phone: farmer.phone,
-
           cattle: farmer.cattle.map((cow) => ({
             id: cow.id,
             cattleId: cow.cattleId,
             name: cow.name,
-
             assignedToThisCentre:
               cow.collectionCentreId === centre.id,
-
             assignedToAnotherCentre:
               cow.collectionCentreId !== null &&
               cow.collectionCentreId !== centre.id,
@@ -164,10 +155,7 @@ if (
       );
     }
 
-    // ==========================================
     // POST: ASSIGN SELECTED CATTLE TO CENTRE
-    // ==========================================
-
     if (
       req.method === "POST" &&
       url.pathname === "/api/collection-centre/cattle/assign"
@@ -199,9 +187,7 @@ if (
         );
       }
 
-      const cattleIds = [
-        ...new Set(input.cattleIds as string[]),
-      ];
+      const cattleIds = [...new Set(input.cattleIds as string[])];
 
       if (cattleIds.length > 200) {
         return json(
@@ -308,10 +294,255 @@ if (
       });
     }
 
+    // POST: DISPATCH MILK BATCH FOR TRANSPORTATION
+    if (
+      req.method === "POST" &&
+      url.pathname === "/api/collection-centre/transport/dispatch"
+    ) {
+      let input: unknown;
+
+      try {
+        input = await req.json();
+      } catch {
+        return json(
+          { error: "Request body must be valid JSON." },
+          400,
+        );
+      }
+
+      if (
+        typeof input !== "object" ||
+        input === null ||
+        !("batchId" in input) ||
+        !("factoryId" in input) ||
+        !("vehicleId" in input) ||
+        !("dispatchedAt" in input) ||
+        typeof input.batchId !== "string" ||
+        typeof input.factoryId !== "string" ||
+        typeof input.vehicleId !== "string" ||
+        typeof input.dispatchedAt !== "string"
+      ) {
+        return json(
+          {
+            error:
+              "Batch ID, factory, vehicle ID and dispatch time are required.",
+          },
+          400,
+        );
+      }
+
+      const batchId = input.batchId.trim();
+      const factoryId = input.factoryId.trim();
+      const vehicleId = input.vehicleId.trim();
+      const dispatchedAt = new Date(input.dispatchedAt);
+
+      if (!batchId || batchId.length > 100) {
+        return json({ error: "Enter a valid milk batch ID." }, 400);
+      }
+
+      if (!isUuid(factoryId)) {
+        return json({ error: "Select a valid destination factory." }, 400);
+      }
+
+      if (!vehicleId || vehicleId.length > 100) {
+        return json({ error: "Enter a valid vehicle ID." }, 400);
+      }
+
+      if (
+        !Number.isFinite(dispatchedAt.getTime()) ||
+        dispatchedAt.getTime() > Date.now()
+      ) {
+        return json(
+          { error: "Enter a valid dispatch date and time." },
+          400,
+        );
+      }
+
+      // Find the batch and verify ownership.
+      const batch = await prisma.milkBatch.findFirst({
+        where: {
+          batchId,
+          collectionCentreId: centre.id,
+        },
+        select: {
+          id: true,
+          batchId: true,
+          volumeL: true,
+          status: true,
+          transportation: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+
+      if (!batch) {
+        return json(
+          {
+            error:
+              "Milk batch not found or it does not belong to your collection centre.",
+          },
+          404,
+        );
+      }
+
+      if (batch.status !== "SAFE") {
+        return json(
+          {
+            error:
+              "Only batches with SAFE status can be dispatched for transportation.",
+          },
+          409,
+        );
+      }
+
+      if (batch.transportation) {
+        return json(
+          { error: "Transportation has already been recorded for this batch." },
+          409,
+        );
+      }
+
+      // Verify the destination factory.
+      const factory = await prisma.factory.findUnique({
+        where: {
+          id: factoryId,
+        },
+        select: {
+          id: true,
+          name: true,
+          address: true,
+        },
+      });
+
+      if (!factory) {
+        return json(
+          { error: "Destination factory was not found." },
+          404,
+        );
+      }
+
+      const eventId = crypto.randomUUID();
+      const sourceLocation =
+        centre.village?.trim() ||
+        centre.address?.trim() ||
+        "Collection centre";
+
+      // Save the transportation record and pending ledger event.
+      const saved = await prisma.$transaction(async (tx) => {
+        const transportation = await tx.milkBatchTransport.create({
+          data: {
+            milkBatchId: batch.id,
+            factoryId: factory.id,
+            vehicleId,
+            dispatchedAt,
+          },
+        });
+
+        const traceabilityEvent = await tx.traceabilityEvent.create({
+          data: {
+            eventType: "TRANSPORT_DISPATCHED",
+            entityType: "milk_batch",
+            entityId: batch.id,
+            payload: {
+              eventId,
+              batchId: batch.batchId,
+              collectionCentreId: centre.id,
+              collectionCentreName: centre.name,
+              sourceLocation,
+              factoryId: factory.id,
+              factoryName: factory.name,
+              destination: factory.address,
+              vehicleId,
+              quantityLitres: batch.volumeL,
+              dispatchedAt: dispatchedAt.toISOString(),
+            },
+            blockchainStatus: "PENDING",
+          },
+        });
+
+        return {
+          transportation,
+          traceabilityEvent,
+        };
+      });
+
+      // Submit the transportation event to Hyperledger Fabric.
+      let blockchainStatus = "CONFIRMED";
+      let blockchainError: string | null = null;
+
+      try {
+        await submitFabricTransaction(
+          "RecordSupplyChainEvent",
+          batch.batchId,
+          eventId,
+          "TRANSPORT_DISPATCHED",
+          centre.name,
+          sourceLocation,
+          vehicleId,
+          String(batch.volumeL),
+          "",
+          "",
+        );
+      } catch (error) {
+        blockchainStatus = "FAILED";
+
+        blockchainError =
+          error instanceof Error
+            ? error.message
+            : "Unknown Fabric submission error";
+
+        console.error(
+          `Fabric transportation submission failed for ${batch.batchId}:`,
+          error,
+        );
+      }
+
+      // Update the PostgreSQL event with the submission result.
+      await prisma.traceabilityEvent.update({
+        where: {
+          id: saved.traceabilityEvent.id,
+        },
+        data: {
+          blockchainStatus,
+          payload: {
+            eventId,
+            batchId: batch.batchId,
+            collectionCentreId: centre.id,
+            collectionCentreName: centre.name,
+            sourceLocation,
+            factoryId: factory.id,
+            factoryName: factory.name,
+            destination: factory.address,
+            vehicleId,
+            quantityLitres: batch.volumeL,
+            dispatchedAt: dispatchedAt.toISOString(),
+            blockchainError,
+          },
+        },
+      });
+
+      return json(
+        {
+          message:
+            blockchainStatus === "CONFIRMED"
+              ? "Transportation dispatch successfully recorded in PostgreSQL and Hyperledger Fabric."
+              : "Transportation was saved in PostgreSQL, but blockchain submission failed. It needs attention before consumer traceability can be confirmed.",
+          transportation: saved.transportation,
+          batchId: batch.batchId,
+          destinationFactory: factory.name,
+          vehicleId,
+          blockchainStatus,
+        },
+        201,
+      );
+    }
+
     return json({ error: "Route not found." }, 404);
   } catch (error) {
     console.error(
-      "Collection-centre cattle request failed:",
+      "Collection-centre request failed:",
       error,
     );
 

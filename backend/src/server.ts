@@ -10,6 +10,7 @@ import {
   authenticateRequest,
   requireRoles,
 } from "./lib/auth-middleware";
+import { handleTraceabilityRequest } from "./routes/traceability";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -264,6 +265,42 @@ if (path.startsWith("/api/collection-centre/")) {
   }
 
   const response = await handleCollectionCentreFarmerRequest(req, user);
+
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+
+  return response;
+}
+
+// ---------------- CONSUMER TRACEABILITY ----------------
+
+const traceabilityMatch = path.match(
+  /^\/api\/traceability\/([^/]+)$/,
+);
+
+if (traceabilityMatch) {
+  const encodedBatchId = traceabilityMatch[1];
+
+  if (!encodedBatchId) {
+    return Response.json(
+      { error: "Invalid batch ID." },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  let batchId: string;
+
+  try {
+    batchId = decodeURIComponent(encodedBatchId);
+  } catch {
+    return Response.json(
+      { error: "Invalid batch ID." },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  const response = await handleTraceabilityRequest(req, batchId);
 
   Object.entries(corsHeaders).forEach(([key, value]) => {
     response.headers.set(key, value);

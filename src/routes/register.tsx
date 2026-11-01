@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSession } from "@/lib/session";
@@ -37,7 +38,6 @@ function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useSession();
 
-  // Role comes from the Login page; it cannot be selected here.
   const [selectedRole] = useState<RoleId | null>(() => getSelectedRole());
 
   const [fullName, setFullName] = useState("");
@@ -46,6 +46,9 @@ function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [village, setVillage] = useState("");
+  const [farmName, setFarmName] = useState("");
+  const [farmLocation, setFarmLocation] = useState("");
+
   const [phone, setPhone] = useState("");
   const [licenseNo, setLicenseNo] = useState("");
   const [organizationCode, setOrganizationCode] = useState("");
@@ -61,8 +64,8 @@ function RegisterPage() {
         <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 text-center shadow-sm">
           <h1 className="text-2xl font-bold text-slate-900">Select a role first</h1>
           <p className="mt-3 text-sm text-slate-600">
-            Please return to the Login page and select Farmer, Veterinarian, Collection Centre, or
-            Factory before registering.
+            Please return to the Login page and select Farmer, Veterinarian,
+            Collection Centre, or Factory before registering.
           </p>
           <button
             type="button"
@@ -101,16 +104,17 @@ function RegisterPage() {
       return;
     }
 
-    // Build the profile payload for the selected role only.
     const profile: Record<string, string> = {};
 
     if (selectedRole === ("farmer" as RoleId)) {
-      if (!village.trim()) {
-        setError("Please enter your village.");
+      if (!village.trim() || !farmName.trim() || !farmLocation.trim()) {
+        setError("Please enter your village, farm name, and farm location.");
         return;
       }
 
       profile["village"] = village.trim();
+      profile["farmName"] = farmName.trim();
+      profile["farmLocation"] = farmLocation.trim();
       profile["phone"] = phone.trim();
     }
 
@@ -156,7 +160,11 @@ function RegisterPage() {
         navigate({ to: "/login" });
       }, 1200);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed. Please try again.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Registration failed. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -171,9 +179,12 @@ function RegisterPage() {
           <p className="text-sm font-semibold uppercase tracking-widest text-emerald-700">
             ResiduGuard
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">Create your account</h1>
+          <h1 className="mt-2 text-3xl font-bold text-slate-900">
+            Create your account
+          </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Registering as <span className="font-semibold text-emerald-800">{roleLabel}</span>
+            Registering as{" "}
+            <span className="font-semibold text-emerald-800">{roleLabel}</span>
           </p>
         </div>
 
@@ -216,6 +227,38 @@ function RegisterPage() {
           {selectedRole === ("farmer" as RoleId) && (
             <>
               <div>
+                <label htmlFor="farmName" className="mb-1 block text-sm font-medium text-slate-700">
+                  Farm Name *
+                </label>
+                <input
+                  id="farmName"
+                  name="farmName"
+                  type="text"
+                  required
+                  value={farmName}
+                  onChange={(event) => setFarmName(event.target.value)}
+                  placeholder="Enter your farm name"
+                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="farmLocation" className="mb-1 block text-sm font-medium text-slate-700">
+                  Farm Location *
+                </label>
+                <input
+                  id="farmLocation"
+                  name="farmLocation"
+                  type="text"
+                  required
+                  value={farmLocation}
+                  onChange={(event) => setFarmLocation(event.target.value)}
+                  placeholder="Enter farm location (district, state)"
+                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+
+              <div>
                 <label htmlFor="village" className="mb-1 block text-sm font-medium text-slate-700">
                   Village *
                 </label>
@@ -252,10 +295,7 @@ function RegisterPage() {
           {selectedRole === ("veterinarian" as RoleId) && (
             <>
               <div>
-                <label
-                  htmlFor="licenseNo"
-                  className="mb-1 block text-sm font-medium text-slate-700"
-                >
+                <label htmlFor="licenseNo" className="mb-1 block text-sm font-medium text-slate-700">
                   Veterinary license number *
                 </label>
                 <input
@@ -291,10 +331,7 @@ function RegisterPage() {
           {selectedRole === ("collection_centre" as RoleId) && (
             <>
               <div>
-                <label
-                  htmlFor="organizationCode"
-                  className="mb-1 block text-sm font-medium text-slate-700"
-                >
+                <label htmlFor="organizationCode" className="mb-1 block text-sm font-medium text-slate-700">
                   Collection Centre Code *
                 </label>
                 <input
@@ -342,10 +379,7 @@ function RegisterPage() {
           {selectedRole === ("factory" as RoleId) && (
             <>
               <div>
-                <label
-                  htmlFor="organizationCode"
-                  className="mb-1 block text-sm font-medium text-slate-700"
-                >
+                <label htmlFor="organizationCode" className="mb-1 block text-sm font-medium text-slate-700">
                   Factory Code *
                 </label>
                 <input
@@ -394,10 +428,7 @@ function RegisterPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="confirmPassword"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
+            <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium text-slate-700">
               Confirm password *
             </label>
             <input
@@ -414,19 +445,13 @@ function RegisterPage() {
           </div>
 
           {error && (
-            <p
-              role="alert"
-              className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-            >
+            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {error}
             </p>
           )}
 
           {success && (
-            <p
-              role="status"
-              className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"
-            >
+            <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
               {success}
             </p>
           )}

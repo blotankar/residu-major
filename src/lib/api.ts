@@ -1,3 +1,4 @@
+
 const API_URL = (import.meta.env["VITE_API_URL"] || "http://localhost:3000").replace(/\/$/, "");
 const SESSION_KEY = "residuguard.session";
 
@@ -142,21 +143,18 @@ function getAuthToken(): string {
   }
 }
 
-// Fetch the logged-in collection centre's profile
 export function fetchCollectionCentreProfile() {
   return apiRequest<CollectionCentreProfile>(
     "/api/collection-centre/profile",
   );
 }
 
-// Search farmers by Farmer ID or farmer name
 export function searchCentreFarmers(search: string) {
   return apiRequest<CollectionCentreFarmer[]>(
     `/api/collection-centre/farmers/search?search=${encodeURIComponent(search)}`,
   );
 }
 
-// Assign selected cattle to the logged-in collection centre
 export function assignCattleToCentre(cattleIds: string[]) {
   return apiRequest<{ message: string; assignedCount: number }>(
     "/api/collection-centre/cattle/assign",
@@ -167,7 +165,10 @@ export function assignCattleToCentre(cattleIds: string[]) {
   );
 }
 
-async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const token = getAuthToken();
 
   const response = await fetch(`${API_URL}${path}`, {
@@ -204,7 +205,9 @@ export type CreateCattleInput = {
   dateOfBirth?: string | null;
 };
 
-export async function createCattle(input: CreateCattleInput): Promise<ApiCattle> {
+export async function createCattle(
+  input: CreateCattleInput,
+): Promise<ApiCattle> {
   const result = await apiRequest<{ cattle: ApiCattle }>("/api/cattle", {
     method: "POST",
     body: JSON.stringify(input),
@@ -237,7 +240,10 @@ export function fetchMilkBatches() {
   return apiRequest<ApiMilkBatch[]>("/api/milk-batches");
 }
 
-export function createMilkBatch(input: { cattleIds: string[]; volumeL: number }) {
+export function createMilkBatch(input: {
+  cattleIds: string[];
+  volumeL: number;
+}) {
   return apiRequest<{ milkBatch: ApiMilkBatch }>("/api/milk-batches", {
     method: "POST",
     body: JSON.stringify(input),
@@ -285,19 +291,18 @@ export type FactoryIntakeBatch = {
     receivedAt: string;
     discrepancyNote: string | null;
   } | null;
-  
   qualityInspections: {
-  id: string;
-  temperatureC: string;
-  fatPercent: string;
-  snfPercent: string;
-  acidityPercent: string;
-  qualityResult: "PASS" | "FAIL" | "INCONCLUSIVE";
-  status: "ACCEPTED" | "ON_HOLD" | "REJECTED";
-  remarks: string | null;
-  inspectedAt: string;
-  inspector: { name: string };
-}[];
+    id: string;
+    temperatureC: string;
+    fatPercent: string;
+    snfPercent: string;
+    acidityPercent: string;
+    qualityResult: "PASS" | "FAIL" | "INCONCLUSIVE";
+    status: "ACCEPTED" | "ON_HOLD" | "REJECTED";
+    remarks: string | null;
+    inspectedAt: string;
+    inspector: { name: string };
+  }[];
   processingBatches: { id: string }[];
 };
 
@@ -383,7 +388,11 @@ export type FactoryProductionRun = {
       factoryReceipt: { receivedQuantityL: string } | null;
     };
   }[];
-  productLots: { id: string; lotId: string; producedQuantityL: string }[];
+  productLots: {
+    id: string;
+    lotId: string;
+    producedQuantityL: string;
+  }[];
 };
 
 export type FactoryProductLot = {
@@ -393,7 +402,11 @@ export type FactoryProductLot = {
   producedQuantityL: string;
   currentQuantityL: string;
   status: "AVAILABLE" | "HOLD" | "RECALLED" | "DEPLETED";
-  processingBatch: { batchId: string; product: string; date: string };
+  processingBatch: {
+    batchId: string;
+    product: string;
+    date: string;
+  };
   movements: {
     id: string;
     movementType: "PRODUCTION_OUTPUT" | "DISPATCH";
@@ -403,19 +416,50 @@ export type FactoryProductLot = {
   }[];
 };
 
+export type BlockchainSyncStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "PARTIAL"
+  | "FAILED";
+
 export type FactoryDispatch = {
   id: string;
   dispatchId: string;
   destination: string;
   dispatchedAt: string;
+  vehicleId: string | null;
   transportDetails: string | null;
   status: "DISPATCHED" | "CANCELLED";
   items: {
     id: string;
     quantityL: string;
-    productLot: { lotId: string; productName: string };
+    productLot: {
+      lotId: string;
+      productName: string;
+    };
   }[];
   createdBy: { name: string };
+
+  // These fields are supplied by the dispatch API when available.
+  blockchainStatus?: BlockchainSyncStatus;
+  blockchainMessage?: string;
+};
+
+export type FactoryDispatchFabricResult = {
+  lotId: string;
+  milkBatchId?: string;
+  batchId: string;
+  eventId: string;
+  status: "CONFIRMED" | "FAILED" | "PENDING";
+  message?: string;
+  transactionId?: string;
+};
+
+export type FactoryDispatchResponse = {
+  dispatch: FactoryDispatch;
+  blockchainStatus: BlockchainSyncStatus;
+  blockchainMessage?: string;
+  fabricResults?: FactoryDispatchFabricResult[];
 };
 
 export type FactoryReportData = {
@@ -432,18 +476,18 @@ export type FactoryReportData = {
   productionRuns: FactoryProductionRun[];
   productLots: FactoryProductLot[];
   dispatches: FactoryDispatch[];
-inspections: {
-  id: string;
-  status: string;
-  temperatureC: string;
-  fatPercent: string;
-  snfPercent: string;
-  acidityPercent: string;
-  qualityResult: "PASS" | "FAIL" | "INCONCLUSIVE";
-  inspectedAt: string;
-  milkBatch: { batchId: string };
-  inspector: { name: string };
-}[];
+  inspections: {
+    id: string;
+    status: string;
+    temperatureC: string;
+    fatPercent: string;
+    snfPercent: string;
+    acidityPercent: string;
+    qualityResult: "PASS" | "FAIL" | "INCONCLUSIVE";
+    inspectedAt: string;
+    milkBatch: { batchId: string };
+    inspector: { name: string };
+  }[];
 };
 
 export type FactoryProductionCompletion = {
@@ -461,25 +505,34 @@ export function fetchFactoryDashboard() {
   return apiRequest<FactoryDashboardData>("/api/factory/dashboard");
 }
 
-export function fetchFactoryIntake(params: { search?: string; status?: string } = {}) {
+export function fetchFactoryIntake(
+  params: { search?: string; status?: string } = {},
+) {
   const query = new URLSearchParams();
+
   if (params.search) query.set("search", params.search);
   if (params.status) query.set("status", params.status);
+
   const suffix = query.size ? `?${query.toString()}` : "";
-  return apiRequest<FactoryIntakeBatch[]>(`/api/factory/intake${suffix}`);
+
+  return apiRequest<FactoryIntakeBatch[]>(
+    `/api/factory/intake${suffix}`,
+  );
 }
 
 export function receiveFactoryBatch(
   id: string,
-  input: { receivedQuantityL: number; receivedAt?: string; discrepancyNote?: string },
+  input: {
+    receivedQuantityL: number;
+    receivedAt?: string;
+    discrepancyNote?: string;
+  },
 ) {
   return apiRequest(`/api/factory/intake/${encodeURIComponent(id)}/receive`, {
     method: "POST",
     body: JSON.stringify(input),
   });
 }
-
-
 
 export function inspectFactoryBatch(
   id: string,
@@ -503,10 +556,13 @@ export function createFactoryProduction(input: {
   date: string;
   milkBatchIds: string[];
 }) {
-  return apiRequest<{ productionRun: FactoryProductionRun }>("/api/factory/production", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  return apiRequest<{ productionRun: FactoryProductionRun }>(
+    "/api/factory/production",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function completeFactoryProduction(
@@ -532,28 +588,49 @@ export function fetchFactoryDispatches() {
 
 export function createFactoryDispatch(input: {
   destination: string;
+  vehicleId: string;
   dispatchedAt?: string;
   transportDetails?: string;
   items: { lotId: string; quantityL: number }[];
 }) {
-  return apiRequest<{ dispatch: FactoryDispatch }>("/api/factory/dispatch", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
-
-export function fetchFactoryTrace(id: string) {
-  return apiRequest<{ type: string; record: Record<string, unknown> }>(
-    `/api/factory/trace/${encodeURIComponent(id)}`,
+  return apiRequest<FactoryDispatchResponse>(
+    "/api/factory/dispatch",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
   );
 }
 
-export function fetchFactoryReports(params: { from?: string; to?: string } = {}) {
+export function retryFactoryDispatchBlockchain(dispatchId: string) {
+  return apiRequest<FactoryDispatchResponse>(
+    `/api/factory/dispatch/${encodeURIComponent(dispatchId)}/retry-blockchain`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+export function fetchFactoryTrace(id: string) {
+  return apiRequest<{
+    type: string;
+    record: Record<string, unknown>;
+  }>(`/api/factory/trace/${encodeURIComponent(id)}`);
+}
+
+export function fetchFactoryReports(
+  params: { from?: string; to?: string } = {},
+) {
   const query = new URLSearchParams();
+
   if (params.from) query.set("from", params.from);
   if (params.to) query.set("to", params.to);
+
   const suffix = query.size ? `?${query.toString()}` : "";
-  return apiRequest<FactoryReportData>(`/api/factory/reports${suffix}`);
+
+  return apiRequest<FactoryReportData>(
+    `/api/factory/reports${suffix}`,
+  );
 }
 
 export type FactoryCollectionCentre = {

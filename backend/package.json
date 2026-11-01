@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-  "dev": "bun --hot src/server.ts",
-  "build": "bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
-  "start": "bun src/server.ts"
-},
+    "dev": "bun --hot src/server.ts",
+    "build": "bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
+    "start": "bun src/server.ts"
+  },
   "dependencies": {
+    "@grpc/grpc-js": "^1.14.7",
+    "@hyperledger/fabric-gateway": "^1.13.0",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "7",
     "@supabase/ssr": "^0.12.7",

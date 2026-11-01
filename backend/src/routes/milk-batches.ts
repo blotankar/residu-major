@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import type { AuthenticatedUser } from "../lib/auth-middleware";
 import { Prisma } from "../../generated/prisma/client";
+import { submitFabricTransaction } from "../services/fabric";
 
 const createSchema = z.object({
   cattleIds: z.array(z.string().trim().min(1)).min(1).max(500),
@@ -59,7 +60,7 @@ export async function handleMilkBatchRequest(
             include: {
               cattle: {
                 select: {
-                   id: true,
+                  id: true,
                   cattleId: true,
                   name: true,
                   farmer: {
@@ -126,7 +127,7 @@ export async function handleMilkBatchRequest(
     const { startOfDay, startOfTomorrow } =
       getIndiaDayRange(batchDate);
 
-    // Fetch all requested cattle and their latest treatments.
+    // Fetch all requested cattle, latest treatments, and farmer profiles.
     const cattle = await prisma.cattle.findMany({
       where: {
         id: {
@@ -139,6 +140,15 @@ export async function handleMilkBatchRequest(
             administeredAt: "desc",
           },
           take: 1,
+        },
+        farmer: {
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
         },
       },
     });
@@ -186,6 +196,52 @@ export async function handleMilkBatchRequest(
       );
     }
 
+    // Every contributing farmer must have registered farm details.
+    const farmerWithoutFarmDetails = cattle.find(
+      (animal) =>
+        !animal.farmer.farmName?.trim() ||
+        !animal.farmer.farmLocation?.trim(),
+    );
+
+    if (farmerWithoutFarmDetails) {
+      return json(
+        {
+          error:
+            "A contributing farmer has not completed their farm profile. Please ask the farmer to update their farm name and farm location before creating this milk batch.",
+          cattleId: farmerWithoutFarmDetails.cattleId,
+        },
+        409,
+      );
+    }
+
+    // Group cattle by farmer so each farm is recorded once on Fabric.
+    const farmGroups = new Map<
+      string,
+      {
+        farmId: string;
+        farmName: string;
+        location: string;
+        cattleIds: string[];
+      }
+    >();
+
+    for (const animal of cattle) {
+      const farmer = animal.farmer;
+
+      const existingFarm = farmGroups.get(farmer.id);
+
+      if (existingFarm) {
+        existingFarm.cattleIds.push(animal.cattleId);
+      } else {
+        farmGroups.set(farmer.id, {
+          farmId: farmer.id,
+          farmName: farmer.farmName!,
+          location: farmer.farmLocation!,
+          cattleIds: [animal.cattleId],
+        });
+      }
+    }
+
     // Generate a unique batch ID.
     const batchId = `MB-${batchDate
       .toISOString()
@@ -199,29 +255,28 @@ export async function handleMilkBatchRequest(
     // have already contributed to a batch on this Indian calendar day.
     const result = await prisma.$transaction(
       async (tx) => {
-        const existingIntakes = await tx.milkBatchAnimal.findMany({
-          where: {
-            cattleId: {
-              in: body.data.cattleIds,
-            },
-            milkBatch: {
-              collectionCentreId: centre.id,
-              date: {
-                gte: startOfDay,
-                lt: startOfTomorrow,
+        const existingIntakes =
+          await tx.milkBatchAnimal.findMany({
+            where: {
+              cattleId: {
+                in: body.data.cattleIds,
+              },
+              milkBatch: {
+                collectionCentreId: centre.id,
+                date: {
+                  gte: startOfDay,
+                  lt: startOfTomorrow,
+                },
               },
             },
-          },
-          select: {
-            cattleId: true,
-          },
-        });
+            select: {
+              cattleId: true,
+            },
+          });
 
         if (existingIntakes.length > 0) {
           return {
-            conflict: existingIntakes.map(
-              (item) => item.cattleId,
-            ),
+            conflict: existingIntakes.map((item) => item.cattleId),
           };
         }
 
@@ -251,23 +306,28 @@ export async function handleMilkBatchRequest(
           },
         });
 
-        await tx.traceabilityEvent.create({
-          data: {
-            eventType: "MILK_BATCH_CREATED",
-            entityType: "milk_batch",
-            entityId: created.id,
-            payload: {
-              batchId,
-              collectionCentreId: centre.id,
-              volumeL: body.data.volumeL,
-              contributingCattleIds: cattle.map(
-                (animal) => animal.cattleId,
-              ),
+        const traceabilityEvent =
+          await tx.traceabilityEvent.create({
+            data: {
+              eventType: "MILK_BATCH_CREATED",
+              entityType: "milk_batch",
+              entityId: created.id,
+              payload: {
+                batchId,
+                collectionCentreId: centre.id,
+                volumeL: body.data.volumeL,
+                contributingCattleIds: cattle.map(
+                  (animal) => animal.cattleId,
+                ),
+              },
+              blockchainStatus: "PENDING",
             },
-          },
-        });
+          });
 
-        return { batch: created };
+        return {
+          batch: created,
+          traceabilityEventId: traceabilityEvent.id,
+        };
       },
       {
         isolationLevel:
@@ -287,7 +347,78 @@ export async function handleMilkBatchRequest(
       );
     }
 
-    return json({ milkBatch: result.batch }, 201);
+    // Submit the batch and its farm origins to Hyperledger Fabric.
+    let blockchainStatus = "PENDING";
+    let blockchainError: string | null = null;
+
+    try {
+      // Step 1: Create the milk batch on the blockchain.
+      await submitFabricTransaction(
+        "CreateMilkBatch",
+        batchId,
+        centre.id,
+        centre.name,
+        batchDate.toISOString(),
+        String(body.data.volumeL),
+      );
+
+      // Step 2: Record every contributing farm.
+      for (const farm of farmGroups.values()) {
+        await submitFabricTransaction(
+          "AddFarmOrigin",
+          batchId,
+          farm.farmId,
+          farm.farmName,
+          farm.location,
+          JSON.stringify(farm.cattleIds),
+        );
+      }
+
+      blockchainStatus = "CONFIRMED";
+    } catch (fabricError) {
+      blockchainStatus = "FAILED";
+
+      blockchainError =
+        fabricError instanceof Error
+          ? fabricError.message
+          : "Unknown blockchain submission error.";
+
+      console.error(
+        `Fabric submission failed for batch ${batchId}:`,
+        fabricError,
+      );
+    }
+
+    // Record the blockchain submission outcome in PostgreSQL.
+    await prisma.traceabilityEvent.update({
+      where: {
+        id: result.traceabilityEventId,
+      },
+      data: {
+        blockchainStatus,
+        payload: {
+          batchId,
+          collectionCentreId: centre.id,
+          volumeL: body.data.volumeL,
+          contributingCattleIds: cattle.map(
+            (animal) => animal.cattleId,
+          ),
+          blockchainError,
+        },
+      },
+    });
+
+    return json(
+      {
+        milkBatch: result.batch,
+        blockchainStatus,
+        blockchainMessage:
+          blockchainStatus === "CONFIRMED"
+            ? "Milk batch and farm origins successfully recorded on Hyperledger Fabric."
+            : "Milk batch was saved in PostgreSQL, but blockchain submission needs attention. Do not assume it is available on the consumer traceability page yet.",
+      },
+      201,
+    );
   } catch (error) {
     if (error instanceof SyntaxError) {
       return json(
