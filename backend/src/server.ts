@@ -2,7 +2,6 @@
 import { getCattle, createCattle } from "./routes/cattle";
 import { login, register } from "./routes/auth";
 import { handleFactoryRequest } from "./routes/factory";
-import { handleMilkBatchRequest } from "./routes/milk-batches";
 import { handleMrlRequest } from "./routes/mrl";
 import { handleTreatmentRequest } from "./routes/treatments";
 import { handleCollectionCentreFarmerRequest } from "./routes/collection-centre-farmers";
@@ -10,6 +9,10 @@ import {
   authenticateRequest,
   requireRoles,
 } from "./lib/auth-middleware";
+import {
+  handleMilkBatchRequest,
+  handleResidueScreeningRequest,
+} from "./routes/milk-batches";
 import { handleTraceabilityRequest } from "./routes/traceability";
 
 const corsHeaders = {
@@ -197,6 +200,65 @@ const server = Bun.serve({
 
       return response;
     }
+
+// ---------------- MILK BATCH RESIDUE SCREENING ----------------
+
+const residueScreeningMatch = path.match(
+  /^\/api\/milk-batches\/([^/]+)\/residue-screening$/,
+);
+
+if (residueScreeningMatch && req.method === "POST") {
+  const user = authenticateRequest(req);
+
+  if (user instanceof Response) {
+    return user;
+  }
+
+  const permission = requireRoles(user, ["collection_centre"]);
+
+  if (permission) {
+    return permission;
+  }
+
+  // Check that the captured batch ID exists.
+  const encodedMilkBatchId = residueScreeningMatch[1];
+
+  if (!encodedMilkBatchId) {
+    return Response.json(
+      { error: "Invalid milk batch ID." },
+      {
+        status: 400,
+        headers: corsHeaders,
+      },
+    );
+  }
+
+  let milkBatchId: string;
+
+  try {
+    milkBatchId = decodeURIComponent(encodedMilkBatchId);
+  } catch {
+    return Response.json(
+      { error: "Invalid milk batch ID." },
+      {
+        status: 400,
+        headers: corsHeaders,
+      },
+    );
+  }
+
+  const response = await handleResidueScreeningRequest(
+    req,
+    user,
+    milkBatchId,
+  );
+
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+
+  return response;
+}
 
     // ---------------- MILK BATCHES ----------------
 

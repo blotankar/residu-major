@@ -36,6 +36,7 @@ export type ApiMedicineMRL = {
   regulatoryStatus: string | null;
   unitVerification: string | null;
   isDashboardEnabled: boolean;
+  isScreeningEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -216,28 +217,134 @@ export async function createCattle(
   return result.cattle;
 }
 
+// ==========================================
+// RESIDUE SCREENING AND MRL TYPES
+// ==========================================
+
+export type ResidueScreeningResult =
+  | "NEGATIVE"
+  | "POSITIVE"
+  | "INVALID";
+
+export type ApiResidueMeasurement = {
+  id: string;
+  medicineMrlId: string;
+  medicineNameAtTest: string;
+  measuredValue: number;
+  measuredUnit: string;
+  mrlValueAtTest: number;
+  mrlUnitAtTest: string;
+  result: ResidueScreeningResult;
+};
+
+export type ApiResidueScreening = {
+  id: string;
+  milkBatchId: string;
+  sampleId: string;
+  testKitName: string;
+  testKitBatchNumber: string | null;
+
+  // Retained for compatibility with older screening records.
+  antibioticGroups: string[];
+
+  // Automatically calculated by the backend.
+  result: ResidueScreeningResult;
+
+  // Indicates whether the required testing panel was completed.
+  panelComplete: boolean;
+
+  // Quantitative residue measurements and MRL comparisons.
+  measurements: ApiResidueMeasurement[];
+
+  testedAt: string;
+  testedByUserId: string;
+  testedBy?: {
+    name: string;
+  };
+  remarks: string | null;
+  reportUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateResidueMeasurementInput = {
+  medicineMrlId: string;
+  measuredValue: number;
+  measuredUnit: string;
+};
+
+export type CreateResidueScreeningInput = {
+  sampleId: string;
+
+  // Name of the quantitative laboratory test or method.
+  testKitName: string;
+
+  testKitBatchNumber?: string;
+
+  testedAt: string;
+
+  // Must be true only when the complete required test panel is covered.
+  panelComplete: boolean;
+
+  // Actual measured residue concentrations from the test/lab report.
+  measurements: CreateResidueMeasurementInput[];
+
+  remarks?: string;
+  reportUrl?: string;
+};
+
+// ==========================================
+// MILK BATCH TYPES
+// ==========================================
+
 export type ApiMilkBatch = {
   id: string;
   batchId: string;
   date: string;
   volumeL: number;
   status: string;
-  collectionCentre: { name: string; code: string };
+  residueScreenings: ApiResidueScreening[];
+  collectionCentre: {
+    name: string;
+    code: string;
+  };
   contributingAnimals: {
     cattle: {
       id: string;
       cattleId: string;
       name: string | null;
-      farmer: { user: { name: string } };
+      farmer: {
+        user: {
+          name: string;
+        };
+      };
     };
   }[];
   processingBatches: {
-    processingBatch: { batchId: string; factory: { name: string } };
+    processingBatch: {
+      batchId: string;
+      factory: {
+        name: string;
+      };
+    };
   }[];
 };
 
 export function fetchMilkBatches() {
   return apiRequest<ApiMilkBatch[]>("/api/milk-batches");
+}
+
+export function createResidueScreening(
+  milkBatchId: string,
+  input: CreateResidueScreeningInput,
+) {
+  return apiRequest<CreateResidueScreeningResponse>(
+    `/api/milk-batches/${encodeURIComponent(milkBatchId)}/residue-screening`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function createMilkBatch(input: {
@@ -250,6 +357,10 @@ export function createMilkBatch(input: {
   });
 }
 
+// ==========================================
+// MEDICINE MRL
+// ==========================================
+
 export function fetchMedicineMRL() {
   return apiRequest<ApiMedicineMRL[]>("/api/mrl");
 }
@@ -257,6 +368,10 @@ export function fetchMedicineMRL() {
 export function fetchMrlReferences() {
   return apiRequest<ApiMedicineMRL[]>("/api/mrl");
 }
+
+// ==========================================
+// VETERINARIAN APIs
+// ==========================================
 
 export function fetchVetCattle() {
   return apiRequest<VetCattle[]>("/api/vet/cattle");
@@ -272,6 +387,10 @@ export function createTreatment(input: CreateTreatmentInput) {
     body: JSON.stringify(input),
   });
 }
+
+// ==========================================
+// FACTORY TYPES
+// ==========================================
 
 export type FactoryIntakeBatch = {
   id: string;
@@ -301,9 +420,13 @@ export type FactoryIntakeBatch = {
     status: "ACCEPTED" | "ON_HOLD" | "REJECTED";
     remarks: string | null;
     inspectedAt: string;
-    inspector: { name: string };
+    inspector: {
+      name: string;
+    };
   }[];
-  processingBatches: { id: string }[];
+  processingBatches: {
+    id: string;
+  }[];
 };
 
 export type FactoryInspectionInput = {
@@ -380,12 +503,16 @@ export type FactoryProductionRun = {
   packs: number;
   status: string;
   completedAt: string | null;
-  operator: { name: string } | null;
+  operator: {
+    name: string;
+  } | null;
   sourceMilkBatches: {
     milkBatch: {
       id: string;
       batchId: string;
-      factoryReceipt: { receivedQuantityL: string } | null;
+      factoryReceipt: {
+        receivedQuantityL: string;
+      } | null;
     };
   }[];
   productLots: {
@@ -438,9 +565,10 @@ export type FactoryDispatch = {
       productName: string;
     };
   }[];
-  createdBy: { name: string };
+  createdBy: {
+    name: string;
+  };
 
-  // These fields are supplied by the dispatch API when available.
   blockchainStatus?: BlockchainSyncStatus;
   blockchainMessage?: string;
 };
@@ -469,8 +597,13 @@ export type FactoryReportData = {
     receivedAt: string;
     milkBatch: {
       batchId: string;
-      collectionCentre: { name: string; code: string };
-      qualityInspections: { status: string }[];
+      collectionCentre: {
+        name: string;
+        code: string;
+      };
+      qualityInspections: {
+        status: string;
+      }[];
     };
   }[];
   productionRuns: FactoryProductionRun[];
@@ -485,8 +618,12 @@ export type FactoryReportData = {
     acidityPercent: string;
     qualityResult: "PASS" | "FAIL" | "INCONCLUSIVE";
     inspectedAt: string;
-    milkBatch: { batchId: string };
-    inspector: { name: string };
+    milkBatch: {
+      batchId: string;
+    };
+    inspector: {
+      name: string;
+    };
   }[];
 };
 
@@ -501,12 +638,19 @@ export type FactoryProductionCompletion = {
   };
 };
 
+// ==========================================
+// FACTORY DASHBOARD
+// ==========================================
+
 export function fetchFactoryDashboard() {
   return apiRequest<FactoryDashboardData>("/api/factory/dashboard");
 }
 
 export function fetchFactoryIntake(
-  params: { search?: string; status?: string } = {},
+  params: {
+    search?: string;
+    status?: string;
+  } = {},
 ) {
   const query = new URLSearchParams();
 
@@ -547,6 +691,10 @@ export function inspectFactoryBatch(
   );
 }
 
+// ==========================================
+// FACTORY PRODUCTION
+// ==========================================
+
 export function fetchFactoryProduction() {
   return apiRequest<FactoryProductionRun[]>("/api/factory/production");
 }
@@ -567,7 +715,10 @@ export function createFactoryProduction(input: {
 
 export function completeFactoryProduction(
   id: string,
-  input: { outputVolumeL: number; wastageL: number },
+  input: {
+    outputVolumeL: number;
+    wastageL: number;
+  },
 ) {
   return apiRequest<FactoryProductionCompletion>(
     `/api/factory/production/${encodeURIComponent(id)}/complete`,
@@ -578,9 +729,17 @@ export function completeFactoryProduction(
   );
 }
 
+// ==========================================
+// FACTORY INVENTORY
+// ==========================================
+
 export function fetchFactoryInventory() {
   return apiRequest<FactoryProductLot[]>("/api/factory/inventory");
 }
+
+// ==========================================
+// FACTORY DISPATCH
+// ==========================================
 
 export function fetchFactoryDispatches() {
   return apiRequest<FactoryDispatch[]>("/api/factory/dispatch");
@@ -591,7 +750,10 @@ export function createFactoryDispatch(input: {
   vehicleId: string;
   dispatchedAt?: string;
   transportDetails?: string;
-  items: { lotId: string; quantityL: number }[];
+  items: {
+    lotId: string;
+    quantityL: number;
+  }[];
 }) {
   return apiRequest<FactoryDispatchResponse>(
     "/api/factory/dispatch",
@@ -611,6 +773,10 @@ export function retryFactoryDispatchBlockchain(dispatchId: string) {
   );
 }
 
+// ==========================================
+// FACTORY TRACEABILITY
+// ==========================================
+
 export function fetchFactoryTrace(id: string) {
   return apiRequest<{
     type: string;
@@ -618,8 +784,15 @@ export function fetchFactoryTrace(id: string) {
   }>(`/api/factory/trace/${encodeURIComponent(id)}`);
 }
 
+// ==========================================
+// FACTORY REPORTS
+// ==========================================
+
 export function fetchFactoryReports(
-  params: { from?: string; to?: string } = {},
+  params: {
+    from?: string;
+    to?: string;
+  } = {},
 ) {
   const query = new URLSearchParams();
 
@@ -632,6 +805,10 @@ export function fetchFactoryReports(
     `/api/factory/reports${suffix}`,
   );
 }
+
+// ==========================================
+// FACTORY COLLECTION CENTRES
+// ==========================================
 
 export type FactoryCollectionCentre = {
   id: string;
@@ -664,7 +841,10 @@ export async function fetchFactoryCentreBatches(centreId: string) {
 export async function addFactoryIntakeBatches(input: {
   milkBatchIds: string[];
 }) {
-  return apiRequest<{ message: string; addedCount: number }>(
+  return apiRequest<{
+    message: string;
+    addedCount: number;
+  }>(
     "/api/factory/intake/add",
     {
       method: "POST",
@@ -672,3 +852,14 @@ export async function addFactoryIntakeBatches(input: {
     },
   );
 }
+
+export type CreateResidueScreeningResponse = {
+  message: string;
+  screening: ApiResidueScreening;
+  milkBatch: ApiMilkBatch;
+  blockchain: {
+    status: "CONFIRMED" | "FAILED" | "PENDING";
+    transactionId: string | null;
+    error: string | null;
+  };
+};

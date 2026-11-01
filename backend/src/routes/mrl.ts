@@ -19,18 +19,35 @@ export async function handleMrlRequest(
   req: Request,
   user: AuthenticatedUser,
 ): Promise<Response> {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
   if (req.method !== "GET") {
     return json({ error: "Method not allowed." }, 405);
   }
 
-  if (!["farmer", "veterinarian", "authority"].includes(user.role)) {
-    return json({ error: "You are not authorized to view MRL references." }, 403);
+  if (
+    ![
+      "farmer",
+      "veterinarian",
+      "authority",
+      "collection_centre",
+    ].includes(user.role)
+  ) {
+    return json(
+      { error: "You are not authorized to view MRL references." },
+      403,
+    );
   }
 
   try {
     const references = await prisma.medicineMRL.findMany({
       where: {
-        isDashboardEnabled: true,
+        OR: [
+          { isDashboardEnabled: true },
+          { isScreeningEnabled: true },
+        ],
       },
       orderBy: {
         medicineName: "asc",

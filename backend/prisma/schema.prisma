@@ -16,7 +16,14 @@ enum UserRole {
   CONSUMER
 }
 
+enum ResidueScreeningResult {
+  NEGATIVE
+  POSITIVE
+  INVALID
+}
+
 enum MilkBatchStatus {
+  PENDING_SCREENING
   SAFE
   HOLD
   PROCESSING
@@ -67,17 +74,18 @@ model User {
   role         UserRole
   organization String?
 
-  farmer             Farmer?
-  veterinarian       Veterinarian?
-  collectionCentre   CollectionCentre?
-  factory            Factory?
-  authority          Authority?
-  factoryReceipts    FactoryMilkBatchReceipt[] @relation("FactoryReceiptRecorder")
-  qualityInspections MilkQualityInspection[]   @relation("QualityInspector")
-  productionRuns     ProcessingBatch[]         @relation("ProductionOperator")
-  dispatches         Dispatch[]                @relation("DispatchCreator")
-  inventoryMovements InventoryMovement[]       @relation("InventoryRecorder")
-  factoryIntakeRegistrations FactoryMilkBatchIntake[] @relation("FactoryIntakeRegistrar")
+  farmer                     Farmer?
+  veterinarian               Veterinarian?
+  collectionCentre           CollectionCentre?
+  factory                    Factory?
+  authority                  Authority?
+  factoryReceipts            FactoryMilkBatchReceipt[] @relation("FactoryReceiptRecorder")
+  qualityInspections         MilkQualityInspection[]   @relation("QualityInspector")
+  productionRuns             ProcessingBatch[]         @relation("ProductionOperator")
+  dispatches                 Dispatch[]                @relation("DispatchCreator")
+  inventoryMovements         InventoryMovement[]       @relation("InventoryRecorder")
+  factoryIntakeRegistrations FactoryMilkBatchIntake[]  @relation("FactoryIntakeRegistrar")
+  residueScreenings          ResidueScreening[]        @relation("ResidueScreeningOperator")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -137,6 +145,56 @@ model CollectionCentre {
   @@map("collection_centres")
 }
 
+model ResidueMeasurement {
+  id                 String @id @default(uuid())
+  residueScreeningId String
+  medicineMrlId      String
+
+  medicineNameAtTest String
+  measuredValue      Float
+  measuredUnit       String
+
+  mrlValueAtTest Float
+  mrlUnitAtTest  String
+
+  result ResidueScreeningResult
+
+  residueScreening ResidueScreening @relation(fields: [residueScreeningId], references: [id], onDelete: Cascade)
+  medicineMrl      MedicineMRL      @relation(fields: [medicineMrlId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([residueScreeningId, medicineMrlId])
+  @@index([medicineMrlId])
+  @@map("residue_measurements")
+}
+
+model ResidueScreening {
+  id                 String                 @id @default(uuid())
+  milkBatchId        String
+  sampleId           String                 @unique
+  testKitName        String
+  testKitBatchNumber String?
+  antibioticGroups   String[]
+  result             ResidueScreeningResult
+  measurements       ResidueMeasurement[]
+  testedAt           DateTime
+  testedByUserId     String
+  remarks            String?
+  reportUrl          String?
+  panelComplete      Boolean                @default(false)
+
+  milkBatch MilkBatch @relation(fields: [milkBatchId], references: [id])
+  testedBy  User      @relation("ResidueScreeningOperator", fields: [testedByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([milkBatchId, testedAt])
+  @@index([result])
+  @@map("residue_screenings")
+}
+
 model Factory {
   id      String  @id @default(uuid())
   userId  String  @unique
@@ -148,8 +206,8 @@ model Factory {
   processingBatches ProcessingBatch[]
   milkReceipts      FactoryMilkBatchReceipt[]
   dispatches        Dispatch[]
-  milkBatchIntakes FactoryMilkBatchIntake[]
-  transportations MilkBatchTransport[]
+  milkBatchIntakes  FactoryMilkBatchIntake[]
+  transportations   MilkBatchTransport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -158,14 +216,14 @@ model Factory {
 }
 
 model MilkBatchTransport {
-  id          String   @id @default(uuid())
-  milkBatchId String   @unique
-  factoryId   String
-  vehicleId   String
+  id           String    @id @default(uuid())
+  milkBatchId  String    @unique
+  factoryId    String
+  vehicleId    String
   dispatchedAt DateTime
-  arrivedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  arrivedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   milkBatch MilkBatch @relation(fields: [milkBatchId], references: [id])
   factory   Factory   @relation(fields: [factoryId], references: [id])
@@ -215,8 +273,6 @@ model Cattle {
   @@map("Cattle")
 }
 
-
-
 model Treatment {
   id             String @id @default(uuid())
   cattleId       String
@@ -245,15 +301,16 @@ model MilkBatch {
   collectionCentreId String
   date               DateTime
   volumeL            Float
-  status             MilkBatchStatus @default(SAFE)
+  status             MilkBatchStatus @default(PENDING_SCREENING)
 
   collectionCentre    CollectionCentre         @relation(fields: [collectionCentreId], references: [id])
   contributingAnimals MilkBatchAnimal[]
   processingBatches   ProcessingMilkBatch[]
   factoryReceipt      FactoryMilkBatchReceipt?
+  residueScreenings   ResidueScreening[]
   qualityInspections  MilkQualityInspection[]
-  factoryIntake FactoryMilkBatchIntake?
-  transportation MilkBatchTransport?
+  factoryIntake       FactoryMilkBatchIntake?
+  transportation      MilkBatchTransport?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -262,16 +319,16 @@ model MilkBatch {
 }
 
 model FactoryMilkBatchIntake {
-  id          String   @id @default(uuid())
-  factoryId   String
-  milkBatchId String   @unique
-  addedAt     DateTime @default(now())
+  id            String   @id @default(uuid())
+  factoryId     String
+  milkBatchId   String   @unique
+  addedAt       DateTime @default(now())
   addedByUserId String
 
-  factory Factory   @relation(fields: [factoryId], references: [id])
+  factory   Factory   @relation(fields: [factoryId], references: [id])
   milkBatch MilkBatch @relation(fields: [milkBatchId], references: [id])
-  addedBy User @relation("FactoryIntakeRegistrar", fields: [addedByUserId], references: [id])
-  
+  addedBy   User      @relation("FactoryIntakeRegistrar", fields: [addedByUserId], references: [id])
+
   @@index([factoryId, addedAt])
   @@map("factory_milk_batch_intakes")
 }
@@ -295,19 +352,19 @@ model FactoryMilkBatchReceipt {
 }
 
 model MilkQualityInspection {
-  id                 String                  @id @default(uuid())
-  milkBatchId        String
-  inspectorUserId    String
-  temperatureC       Decimal                 @db.Decimal(7, 3)
-  fatPercent         Decimal                 @db.Decimal(7, 3)
-  snfPercent         Decimal                 @db.Decimal(7, 3)
-  acidityPercent     Decimal                 @db.Decimal(7, 3)
+  id              String  @id @default(uuid())
+  milkBatchId     String
+  inspectorUserId String
+  temperatureC    Decimal @db.Decimal(7, 3)
+  fatPercent      Decimal @db.Decimal(7, 3)
+  snfPercent      Decimal @db.Decimal(7, 3)
+  acidityPercent  Decimal @db.Decimal(7, 3)
 
-  qualityResult QualityTestResult @map("adulterationResult")
-  status             QualityInspectionStatus
-  remarks            String?
-  inspectedAt        DateTime                @default(now())
-  createdAt          DateTime                @default(now())
+  qualityResult QualityTestResult       @map("adulterationResult")
+  status        QualityInspectionStatus
+  remarks       String?
+  inspectedAt   DateTime                @default(now())
+  createdAt     DateTime                @default(now())
 
   milkBatch MilkBatch @relation(fields: [milkBatchId], references: [id])
   inspector User      @relation("QualityInspector", fields: [inspectorUserId], references: [id])
@@ -490,7 +547,9 @@ model MedicineMRL {
   unitVerification   String?
   isDashboardEnabled Boolean @default(true)
 
-  treatments Treatment[]
+  treatments          Treatment[]
+  isScreeningEnabled  Boolean              @default(false)
+  residueMeasurements ResidueMeasurement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
