@@ -1,63 +1,353 @@
 # ResiduGuard
+### Cattle Health. Safe Milk. Compliant Supply Chain.
 
-ResiduGuard is a cattle-health and antibiotic-residue tracking portal designed to support Maximum Residue Limit (MRL) compliance and livestock health record management.
+ResiduGuard is a web-based cattle health and antibiotic residue tracking portal designed to support responsible antibiotic usage, Maximum Residue Limit (MRL) compliance, milk batch traceability and livestock health record management.
 
 **Repository:** https://github.com/blotankar/residu-blotankar
 
-## Prerequisites
+---
 
-Install the following on your computer:
+# Part A – Project Documentation
+
+## 1. Problem Statement
+
+Antibiotics are commonly administered to dairy cattle to treat bacterial infections and other diseases. However, improper antibiotic usage or failure to follow the prescribed withdrawal period can result in antibiotic residues remaining in milk.
+
+When contaminated milk enters the dairy supply chain, it can create potential health risks for consumers and affect food safety.
+
+Traditional dairy supply chains also face challenges such as:
+- Lack of centralized cattle health and treatment records.
+- Difficulty monitoring antibiotic administration and withdrawal periods.
+- Limited traceability of milk from farms to consumers.
+- Difficulty identifying and tracking potentially contaminated milk batches.
+- Lack of transparent residue testing and MRL compliance records.
+
+## 2. Proposed Solution
+
+ResiduGuard provides a centralized digital platform connecting farmers, veterinarians, collection centres, factories and customers.
+
+The system enables:
+- Digital cattle health and treatment record management.
+- Antibiotic administration and withdrawal-period monitoring.
+- Milk collection and batch management.
+- Residue testing and MRL compliance monitoring.
+- End-to-end milk supply-chain traceability.
+- Blockchain-based storage of traceability records using Hyperledger Fabric.
+
+By combining database management with blockchain technology, ResiduGuard improves transparency, accountability and traceability throughout the dairy supply chain.
+
+## 3. Project Objectives
+
+- Maintain digital cattle health and treatment records.
+- Monitor antibiotic usage and withdrawal periods.
+- Reduce the risk of milk containing antibiotic residues entering the supply chain.
+- Track milk batches from collection to final distribution.
+- Support residue testing and MRL compliance verification.
+- Maintain tamper-evident records using blockchain technology.
+- Provide role-based access to different stakeholders.
+
+## 4. System Architecture
+
+ResiduGuard follows an integrated web-based architecture in which different stakeholders interact with a centralized portal to manage cattle health, antibiotic usage, milk collection, processing and supply-chain traceability.
+
+The system consists of the following major components:
+
+### 4.1 Stakeholder Interfaces
+
+The portal provides role-based interfaces for six stakeholders:
+
+- **Farmer:** Manages cattle information, health records, treatment history and milk production.
+- **Veterinarian:** Records antibiotic treatments and monitors withdrawal periods.
+- **Collection Centre:** Records milk intake, manages collection details and tracks milk batches.
+- **Factory:** Manages milk receipt, quality inspection, production, inventory, dispatch and residue testing.
+- **Customer:** Accesses product information and verifies available milk batch traceability details.
+- **Administrator:** Manages users, roles, system activities and compliance information.
+
+### 4.2 Centralized Application
+
+All stakeholder interfaces communicate with the ResiduGuard application through REST APIs.
+
+The application, developed using React, TypeScript, Bun and TypeScript, handles:
+
+- User authentication and role-based authorization.
+- Cattle and health record management.
+- Antibiotic treatment and withdrawal-period monitoring.
+- Milk collection and batch management.
+- Factory operations and residue testing.
+- MRL compliance verification.
+- Supply-chain traceability.
+
+### 4.3 Database Management
+
+ResiduGuard uses PostgreSQL hosted on Supabase as its operational database. Prisma ORM manages database queries and interactions.
+
+The database maintains:
+- User and role information.
+- Cattle and health records.
+- Antibiotic treatment records.
+- Milk batch information.
+- Residue test results.
+- Factory operations and compliance records.
+
+### 4.4 Blockchain Integration
+
+Hyperledger Fabric 2.5.x is integrated into ResiduGuard to maintain tamper-evident milk traceability records.
+
+The application connects to a permissioned blockchain network through its backend. Blockchain transactions provide an additional layer of transparency and verifiability for supply-chain records.
+
+The blockchain network uses:
+- Channel: `residuguard-channel`
+- Chaincode: `residuguard`
+- Organization: `Org1MSP`
+- Peer: `peer0.org1.example.com`
+
+### 4.5 System Interaction Flow
+
+The overall system connects stakeholders through the following supply-chain process:
+
+**Farm → Collection Centre → Factory → Customer**
+
+Cattle health and antibiotic treatment information is maintained by farmers and veterinarians. Milk collection details are recorded at collection centres. Factories manage incoming batches, processing, residue testing and compliance information. Customers can access available product and batch traceability details.
+
+PostgreSQL maintains the operational application data, while Hyperledger Fabric provides tamper-evident blockchain records for traceability.
+
+Together, these components support an integrated and transparent dairy supply-chain management system.
+
+## 5. Technology Stack
+
+| Technology | Purpose |
+|---|---|
+| React | Frontend development |
+| TypeScript | Type-safe application development |
+| TanStack Router / TanStack Start | Frontend routing and application framework |
+| Tailwind CSS | UI styling |
+| Bun | JavaScript runtime and package management |
+| REST APIs | Frontend-backend communication |
+| PostgreSQL | Relational database |
+| Supabase | Cloud database hosting |
+| Prisma ORM | Database queries and schema management |
+| Hyperledger Fabric 2.5.x | Permissioned blockchain |
+| Docker | Blockchain network containerization |
+| Git and GitHub | Version control and collaboration |
+
+## 6. User Roles and Responsibilities
+
+ResiduGuard provides role-based access for six major stakeholders.
+
+### 6.1 Farmer
+
+- Register and manage cattle.
+- Maintain cattle health information.
+- View cattle treatment history.
+- Track milk production.
+- Access relevant cattle records.
+
+### 6.2 Veterinarian
+
+- Maintain veterinary treatment records.
+- Record antibiotic administration.
+- Manage treatment information and dosage.
+- Monitor antibiotic withdrawal periods.
+- Maintain cattle treatment history.
+
+### 6.3 Collection Centre
+
+- Manage milk collection from farmers.
+- Record milk intake information.
+- Track milk collection batches.
+- Maintain collection records.
+- View relevant batch and testing information.
+
+### 6.4 Factory
+
+- Manage incoming milk batches.
+- Record milk receipt and quality inspection.
+- Manage production operations.
+- Maintain finished-lot inventory.
+- Manage dispatch operations.
+- View residue testing and compliance information.
+- Access batch traceability and reports.
+
+### 6.5 Customer
+
+- Access product details.
+- Verify available milk batch information.
+- View traceability information.
+- Check available safety and compliance information.
+
+### 6.6 Administrator
+
+- Manage users and their roles.
+- Oversee system operations.
+- Monitor system information.
+- Access compliance information and reports.
+- Manage administrative access.
+
+## 7. Features and Interfaces
+
+### 7.1 Authentication and Role-Based Access
+- User registration and login.
+- Role-specific authentication.
+- Protected dashboards and routes.
+- Role-based authorization.
+
+### 7.2 Farmer Interface
+- Cattle registration and management.
+- Cattle health information.
+- Treatment history.
+- Milk production records.
+
+### 7.3 Veterinarian Interface
+- Treatment management.
+- Antibiotic administration records.
+- Withdrawal-period monitoring.
+- Veterinary health records.
+
+### 7.4 Collection Centre Interface
+- Milk intake management.
+- Milk collection records.
+- Batch creation and tracking.
+- Testing information management.
+
+### 7.5 Factory Interface
+- Milk receipt.
+- Quality inspection.
+- Production management.
+- Finished-lot inventory.
+- Dispatch management.
+- Batch traceability.
+- Date-filtered reports.
+
+### 7.6 Customer Interface
+- Product information access.
+- Milk batch verification.
+- Traceability information.
+- Available compliance details.
+
+### 7.7 Administrator Interface
+- User and role management.
+- System monitoring.
+- Administrative operations.
+- Reports and compliance oversight.
+
+## 8. End-to-End Supply Chain Workflow
+
+ResiduGuard connects the different stakeholders through a digital milk supply-chain workflow.
+
+**Farm → Collection Centre → Factory → Customer**
+
+1. **Farm:** Farmers maintain cattle information, health records and milk production details. Veterinarians record treatments and antibiotic administration.
+
+2. **Collection Centre:** Milk is collected and recorded. Collection centres manage milk intake and batch information.
+
+3. **Factory:** Incoming milk batches are received, inspected and processed. Factories manage production, residue testing, compliance information, inventory and dispatch.
+
+4. **Customer:** Customers can access available product and batch traceability information to understand the milk's supply-chain history.
+
+## 9. Antibiotic Withdrawal Period and MRL Compliance
+
+ResiduGuard supports monitoring of antibiotic treatment records and prescribed withdrawal periods.
+
+The system helps identify milk eligibility based on recorded treatment and withdrawal information.
+
+Residue testing results are also recorded to support Maximum Residue Limit (MRL) compliance verification.
+
+The combination of treatment tracking, withdrawal monitoring and residue testing helps improve milk safety management.
+
+## 10. Blockchain Integration – Hyperledger Fabric
+
+ResiduGuard integrates **Hyperledger Fabric 2.5.x** as a permissioned blockchain network for milk supply-chain traceability.
+
+Blockchain integration provides:
+- Tamper-evident traceability records.
+- Shared ledger access for authorized participants.
+- Verifiable milk batch transaction history.
+- Improved transparency across supply-chain stages.
+- Additional accountability for recorded transactions.
+
+**Blockchain Configuration:**
+
+| Configuration | Value |
+|---|---|
+| Platform | Hyperledger Fabric 2.5.x |
+| Channel | `residuguard-channel` |
+| Chaincode | `residuguard` |
+| Organization | `Org1MSP` |
+| Peer | `peer0.org1.example.com` |
+| Peer Port | `7051` |
+| Docker Network | `fabric_test` |
+
+The project uses a shared Fabric network hosted by the project maintainer. Authorized team members connect their local backend applications to the same network.
+
+---
+
+# Part B – Technical Setup
+
+## 11. Prerequisites
+
+Install the following software:
 
 - [Git](https://git-scm.com/downloads)
 - [Bun](https://bun.sh/)
-- [Node.js](https://nodejs.org/) (keep it installed if required by your frontend tools)
+- [Node.js](https://nodejs.org/)
 - [Visual Studio Code](https://code.visualstudio.com/)
 
-You will also need authorized access to the shared Supabase PostgreSQL database.
+You will also need:
+- Authorized access to the shared Supabase PostgreSQL database.
+- Fabric certificates and identity credentials supplied by the project maintainer.
+- Network access to the shared Hyperledger Fabric network.
 
-Do not commit or share real `.env` files, database passwords, JWT secrets, or Fabric private keys.
+**Blockchain maintainer requirements:**
+- WSL2 with Ubuntu.
+- Docker Desktop with WSL2 integration.
+- Hyperledger Fabric binaries and Docker images.
+- Fabric test network and deployed ResiduGuard chaincode.
 
-## 1. Clone the repository
+Other team members do not need to install or deploy Fabric locally.
 
-Open PowerShell and run:
+## 12. Clone the Repository
+
+Open PowerShell and execute:
 
 ```powershell
 git clone https://github.com/blotankar/residu-blotankar.git
 cd residu-blotankar
 ```
 
-Open this folder in VS Code if you prefer:
+Open the project in VS Code:
 
 ```powershell
 code .
 ```
 
-## 2. Install frontend dependencies
+## 13. Install Dependencies
 
-From the repository root (`residu-blotankar`), run:
+**Frontend dependencies:**
+
+Run from the repository root:
 
 ```powershell
 bun install
 ```
 
-## 3. Install backend dependencies
+**Backend dependencies:**
 
-Open a second terminal at the repository root, then run:
+Open another terminal:
 
 ```powershell
 cd backend
 bun install
 ```
 
-## 4. Configure backend environment variables
+## 14. Configure Environment Variables
 
-Create a local environment file:
+Create the backend environment file:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Open `backend/.env` and configure the values required by the backend:
+Open `backend/.env` and configure:
 
 ```dotenv
 DATABASE_URL="YOUR_SUPABASE_DATABASE_URL"
@@ -65,132 +355,103 @@ DIRECT_URL="YOUR_SUPABASE_DIRECT_DATABASE_URL"
 JWT_SECRET="YOUR_PRIVATE_JWT_SECRET"
 ```
 
-Replace the placeholders with the actual values supplied by the project maintainer.
+Replace the placeholders with credentials provided by the project maintainer.
 
-- `DATABASE_URL`: Application/database connection URL.
-- `DIRECT_URL`: Database URL used by Prisma for migration operations.
-- `JWT_SECRET`: Private secret used to sign authentication tokens.
+- `DATABASE_URL`: Application database connection.
+- `DIRECT_URL`: Direct database connection used for Prisma migrations.
+- `JWT_SECRET`: Secret used for signing authentication tokens.
 
-**Security notes**
+### Security Notes
 
-- Never commit `backend/.env` to Git.
-- Never paste database passwords or JWT secrets into public issues, chats, or documentation.
-- Share database credentials only with teammates authorized to access the shared database.
-- The root `.gitignore` should ignore `.env` and `.env.*` files while allowing `.env.example`.
+- Never commit `.env` files.
+- Never share database passwords or JWT secrets publicly.
+- The root `.gitignore` should ignore environment files while allowing `.env.example`.
+- Keep all credentials private.
 
-The maintainer should ensure that `backend/.env.example` contains all required variable names with placeholders only.
+## 15. Database and Prisma Setup
 
-## 5. Generate Prisma Client
-
-From the `backend` directory, run:
+From the `backend` directory, generate the Prisma Client:
 
 ```powershell
 bunx prisma generate
 ```
 
-Do not run `prisma migrate reset`: it can delete data from the shared database.
+To validate the schema:
 
-The maintainer should ensure the committed Prisma migrations are applied to the shared database. Teammates should not independently reset or alter the shared schema.
+```powershell
+bunx prisma validate
+```
 
-## 6. Configure Hyperledger Fabric blockchain connectivity
+To check migration status:
 
-ResiduGuard uses **Hyperledger Fabric 2.5.x** as its permissioned blockchain network for milk traceability.
+```powershell
+bunx prisma migrate status
+```
 
-The project uses a shared blockchain network hosted on the project maintainer's laptop.
+**Important:**
+- The project uses a shared Supabase PostgreSQL database.
+- The project maintainer should coordinate database migrations.
+- Never execute `prisma migrate reset` on the shared database.
+- Inspect pending migrations before applying them.
 
-Other team members do not need to install Hyperledger Fabric, Docker, WSL, or deploy chaincode locally. They only need to configure their backend to connect to the maintainer's running Fabric network.
+The earlier `20261010180437_cattle_id_unique_per_farmer` migration drops and recreates the cattle table. If this migration is pending, do not apply the migration chain until a data-preserving remediation has been planned.
 
-### 6.1 Shared blockchain architecture
+## 16. Hyperledger Fabric Configuration
 
-- **Project maintainer:** Hosts the Hyperledger Fabric network on their laptop.
-- **Other team members:** Run their own frontend and backend applications locally.
-- **PostgreSQL:** All authorized team members use the shared Supabase database.
-- **Hyperledger Fabric:** All team members connect to the same Fabric network and ledger.
+ResiduGuard uses a shared Hyperledger Fabric 2.5.x network.
 
-The frontend and backend run independently on each teammate's laptop, while blockchain transactions are submitted to the shared Fabric network.
+### 16.1 Shared Network Architecture
 
-### 6.2 Fabric network configuration
+- **Project maintainer:** Hosts the Fabric network.
+- **Other team members:** Run their own frontend and backend locally.
+- **PostgreSQL:** Shared Supabase database.
+- **Hyperledger Fabric:** Shared permissioned blockchain ledger.
 
-The existing ResiduGuard blockchain network uses:
+### 16.2 Start the Blockchain Network
 
-| Configuration | Value |
-|---|---|
-| Hyperledger Fabric version | 2.5.x |
-| Channel name | `residuguard-channel` |
-| Chaincode name | `residuguard` |
-| Organization | `Org1MSP` |
-| Peer | `peer0.org1.example.com` |
-| Peer port | `7051` |
-| Docker network | `fabric_test` |
+The project maintainer must start the existing Fabric network.
 
-The chaincode is already deployed by the project maintainer.
-
-### 6.3 Maintainer setup (one-time and whenever the network needs restarting)
-
-The project maintainer must have the following installed and configured:
-
-- WSL2 with Ubuntu
-- Docker Desktop with WSL2 integration
-- Hyperledger Fabric binaries and Docker images
-- Fabric test network
-- ResiduGuard channel and deployed chaincode
-
-Open the Ubuntu terminal and navigate to the Fabric test network:
+Open Ubuntu through WSL and navigate to:
 
 ```bash
 cd ~/residuguard-blockchain/fabric-samples/test-network
 ```
 
-Start the existing network using the existing channel configuration. Do not recreate the channel or redeploy chaincode unnecessarily.
+Start the existing network using its existing configuration.
 
-Check that the Fabric containers are running:
+Check running containers:
 
 ```bash
 docker ps
 ```
 
-The maintainer must keep the Fabric network running while teammates are using blockchain functionality.
+Keep the network running while other team members use blockchain functionality.
 
-### 6.4 Allow teammates to connect to the maintainer's laptop
-
-Teammates cannot use `localhost:7051` to access the maintainer's laptop because `localhost` refers to their own computers.
+### 16.3 Configure Remote Connectivity
 
 The maintainer must provide a reachable IP address.
 
-**Step 1: Find the maintainer's IP address**
-
-Open PowerShell on the maintainer's laptop:
+On the maintainer's Windows laptop, execute:
 
 ```powershell
 ipconfig
 ```
 
-Find the IPv4 address of the active Wi-Fi or Ethernet connection.
+Find the IPv4 address of the active network connection.
 
-For example:
+For teammates working remotely, a private VPN such as Tailscale can be used.
 
-```text
-192.168.1.10
-```
-
-This is only an example. Use the actual reachable IP address.
-
-**Step 2: Establish network connectivity**
-
-- If teammates are on the same local network, they can connect using the maintainer's reachable LAN IP.
-- If teammates are working from different locations, use a private VPN such as Tailscale.
-- Ensure that the Fabric peer's gRPC port `7051` is reachable from authorized team devices.
-- Configure Windows Firewall to permit connections from trusted devices.
-
-**Important:** The Fabric peer must be configured to accept remote connections through its Docker port mapping and network interface. A peer accessible through `localhost` on the maintainer's laptop is not automatically accessible from other computers.
+Ensure:
+- The Fabric peer port `7051` is reachable.
+- Docker publishes the peer port for remote connections.
+- Windows Firewall permits authorized connections.
+- The peer TLS hostname matches its certificate.
 
 Do not expose Fabric peer ports directly to the public internet.
 
-### 6.5 Configure Fabric environment variables on teammate laptops
+### 16.4 Configure Fabric Environment Variables
 
-Each teammate must configure their own `backend/.env`.
-
-Add the following Fabric configuration:
+Each teammate must configure the following in their own `backend/.env`:
 
 ```dotenv
 FABRIC_PEER_ENDPOINT=MAINTAINER_IP:7051
@@ -201,41 +462,21 @@ FABRIC_IDENTITY_CERT_PATH=certs/fabric/org1/identity-cert.pem
 FABRIC_PRIVATE_KEY_PATH=certs/fabric/org1/private-key.pem
 
 FABRIC_MSP_ID=Org1MSP
-FABRIC_CHANNEL=residuGuard-channel
+FABRIC_CHANNEL=residuguard-channel
 FABRIC_CHAINCODE=residuguard
 ```
 
-Replace `MAINTAINER_IP` with the actual reachable IP address of the maintainer's laptop.
+Replace `MAINTAINER_IP` with the actual reachable IP address.
 
-For example:
+### 16.5 Fabric Certificates and Identity
 
-```dotenv
-FABRIC_PEER_ENDPOINT=192.168.1.10:7051
-```
-
-The `FABRIC_PEER_HOST_ALIAS` must match the hostname included in the peer's TLS certificate. Do not replace it with the IP address unless the peer's TLS configuration and certificate have been updated accordingly.
-
-### 6.6 Fabric certificates and identity setup
-
-The backend requires the following files to establish a secure Fabric Gateway connection:
+The backend requires:
 
 - Peer TLS CA certificate.
 - Client identity certificate.
 - Corresponding private key.
 
-These files are not included in the GitHub repository because they contain security-sensitive information.
-
-The project maintainer must securely provide each authorized teammate with the required certificates and identity credentials.
-
-Recommended security practices:
-
-- Use a separate Fabric identity and private key for each teammate.
-- Do not share the maintainer's private key with everyone.
-- Never upload private keys to GitHub.
-- Never commit the `backend/certs/` directory.
-- Keep certificate files in their configured local paths.
-
-The expected local directory structure is:
+Expected directory structure:
 
 ```text
 backend/
@@ -247,185 +488,104 @@ backend/
             └── private-key.pem
 ```
 
-The certificate files must correspond to the identity and peer configuration used by the backend.
+The project maintainer must securely provide these files to authorized team members.
 
-### 6.7 Verify blockchain connectivity
+Never commit certificates or private keys to GitHub. Prefer separate Fabric identities and private keys for each teammate.
 
-Once the maintainer's Fabric network is running and the teammate's environment is configured:
+### 16.6 Verify Blockchain Connectivity
 
-1. Start the teammate's backend.
-2. Log in to ResiduGuard.
-3. Perform a blockchain-enabled operation, such as creating or dispatching a milk batch.
-4. Check the backend terminal for Fabric connection or transaction errors.
-5. Use the application's traceability functionality to verify the blockchain records.
+1. Ensure the maintainer's Fabric network is running.
+2. Configure the teammate's backend environment.
+3. Start the backend.
+4. Log in to ResiduGuard.
+5. Perform a blockchain-enabled operation, such as creating or dispatching a milk batch.
+6. Check the backend terminal for transaction or connectivity errors.
+7. Verify the records through the application's traceability functionality.
 
-All teammates should be able to query and submit transactions to the same shared ledger, subject to their Fabric identity permissions.
+**Important limitations:**
 
-### 6.8 Important limitations of the shared blockchain
+- The maintainer's laptop must remain switched on.
+- Docker and the Fabric network must remain running.
+- If the network stops, blockchain operations may fail.
+- All authorized teammates use the same ledger.
+- Do not independently recreate the channel or redeploy chaincode without coordinating with the maintainer.
 
-- The maintainer's laptop must remain switched on and connected to the network.
-- Docker and the Fabric test network must remain running.
-- If the maintainer's laptop shuts down or the Fabric network stops, blockchain operations from other teammates may fail.
-- All teammates use the same blockchain ledger.
-- Each teammate runs their own frontend and backend locally.
-- PostgreSQL remains the operational database, while Hyperledger Fabric stores tamper-evident traceability records.
-- Do not independently recreate the shared channel or deploy a different chaincode version without coordinating with the maintainer.
+## 17. Start the Backend
 
-## 7. Start the backend
-
-From the `backend` directory, run:
+Open a terminal inside the `backend` directory:
 
 ```powershell
 bun run src/server.ts
 ```
 
-Keep this terminal open.
-
-The backend server is expected to listen at:
+The backend is expected to run at:
 
 ```text
 http://localhost:3000
 ```
 
-If startup fails, check that `backend/.env` is configured correctly and send the error message to the project maintainer. Never send the contents of `.env`.
+Keep this terminal running.
 
-## 8. Start the frontend
+## 18. Start the Frontend
 
-Open a separate terminal at the repository root (not inside `backend`) and run:
+Open another terminal at the repository root:
 
 ```powershell
 bun run dev
 ```
 
-Use the local URL printed by the frontend development server in the terminal.
+Open the local URL displayed in the terminal.
 
-The frontend's login and registration requests must target the local backend at `http://localhost:3000`.
+The frontend should communicate with the backend at:
 
-Confirm the API URL/proxy configuration in the project before testing. If requests fail, the maintainer should verify the frontend API base URL, CORS configuration, and that the backend is running.
+```text
+http://localhost:3000
+```
 
-## 9. Test registration and login
+Verify the API base URL, proxy configuration and CORS settings if requests fail.
 
-1. Open the frontend URL printed by `bun run dev`.
-2. Register a test account using a unique email address.
-3. Confirm the frontend shows a success response.
-4. Log in using the same credentials.
-5. If authorized, verify that the user and matching role profile were created in the shared Supabase database.
+**Note:** ResiduGuard is a TanStack Start application. Do not use VS Code Live Server to run the project.
 
-### Supported public registration roles
+## 19. Registration and Login
 
-| Role | Required role-specific field |
+1. Open the frontend development URL.
+2. Register using a unique email address.
+3. Verify the registration response.
+4. Log in using the registered credentials.
+5. Verify the appropriate role-based dashboard.
+
+### Supported Public Registration Roles
+
+| Role | Required field |
 |---|---|
 | Farmer | Village |
 | Veterinarian | License number |
 | Collection Centre | Centre code |
 | Factory | Factory code |
 
-Authority accounts are provisioned by an administrator. Consumer accounts use guest batch verification and do not register through the public registration endpoint, according to the current backend logic.
+Additional account information:
 
-Use clearly identifiable test accounts. Since teammates may share one database, test registrations can be visible to everyone with database access.
+- Authority accounts are provisioned by an administrator.
+- Consumer accounts use guest batch verification.
+- Consumers do not register through the public registration endpoint according to the current backend logic.
 
-## 10. Git workflow for team development
+## 20. Factory Database Migration
 
-Avoid having every teammate commit directly to `main`. Each teammate should create a branch for their task.
+The Factory workspace is available at:
 
-First, update the local main branch:
-
-```powershell
-git switch main
-git pull origin main
+```text
+/factory
 ```
 
-Create a task branch (replace `your-task` with a short task name):
+It uses the existing authentication, session, role gate, Bun API server, PostgreSQL database and Prisma Client.
 
-```powershell
-git switch -c feature/your-task
-```
-
-After implementing and testing changes:
-
-```powershell
-git add .
-git commit -m "Describe your change"
-git push -u origin feature/your-task
-```
-
-Then open a Pull Request on GitHub to merge the branch into `main`.
-
-Coordinate with the team before editing shared files such as Prisma schema, migrations, authentication, blockchain configuration, or API configuration.
-
-Before running `git add .`, review `git status` and make sure `.env`, credentials, private keys, generated files, and dependencies are not being committed.
-
-## Troubleshooting
-
-### Browser shows a folder listing at `127.0.0.1:5500`
-
-- This project is a TanStack Start app, not a static site. Do not open the repository with VS Code Live Server.
-- In a terminal at the repository root, run `bun install` if you have not installed dependencies, then run `bun run dev`.
-- Open the URL printed by the development server (usually `http://localhost:5173`) instead of the Live Server URL.
-
-### `DATABASE_URL is not defined`
-
-- Confirm `backend/.env` exists.
-- Check that the variable is named exactly `DATABASE_URL`.
-- Restart the backend after changing `.env`.
-
-### Prisma cannot connect to Supabase
-
-- Verify the database URLs and network access.
-- Do not post connection strings publicly.
-- Ask the project maintainer to verify database permissions and connection settings.
-
-### Frontend registration/login does not work
-
-- Confirm the backend is running on port `3000`.
-- Confirm the frontend API URL points to the backend.
-- Check the browser developer console and backend terminal for errors.
-- The maintainer may need to verify CORS or development proxy configuration.
-
-### Fabric connection fails
-
-- Check whether the maintainer's Fabric network is running.
-- Confirm the maintainer's laptop is reachable over the LAN or private VPN.
-- Confirm port `7051` is reachable.
-- Check that the Docker peer port is published for remote access.
-- Verify the TLS CA certificate and peer hostname.
-- Verify the teammate's identity certificate and corresponding private key.
-- Check that the Fabric channel and chaincode names match the shared network.
-- Check that the Fabric identity has the necessary permissions.
-
-### Fabric works on the maintainer's laptop but not on teammates' laptops
-
-This usually indicates a remote connectivity, Docker port mapping, firewall, VPN, or TLS certificate configuration issue.
-
-Check the peer's network configuration and ensure that the backend connects using the maintainer's reachable IP address rather than `localhost`.
-
-### Port `3000` is already in use
-
-- Stop the other process using the port, or coordinate a different backend port and update the frontend API URL accordingly.
-
-## Factory dashboard
-
-The factory workspace is part of the existing ResiduGuard application at `/factory` and uses the existing login, session, role gate, Bun API server, PostgreSQL database, and Prisma client.
-
-Factory operations include:
-
-- Milk receipt.
-- Recorded quality inspection.
-- Production.
-- Finished-lot inventory.
-- Dispatch.
-- Traceability.
-- Date-filtered reports.
-
-The application records inspection measurements and inspector decisions; it does not invent test thresholds or claim laboratory or regulatory certification.
-
-The factory schema change is an additive migration in:
+Factory migration:
 
 ```text
 backend/prisma/migrations/20261027000000_factory_operations
 ```
 
-Generate the client and validate the schema from `backend`:
+From the backend directory, execute:
 
 ```powershell
 bunx prisma validate
@@ -433,22 +593,107 @@ bunx prisma generate
 bunx prisma migrate status
 ```
 
-Do not run `prisma migrate reset`.
+The factory migration adds tables and nullable processing-batch fields.
 
-**Before applying any pending migrations to a shared or existing database, inspect the status and have the maintainer verify the migration history.**
+Before applying pending migrations to the shared database, inspect the migration status and coordinate with the project maintainer.
 
-The earlier `20261010180437_cattle_id_unique_per_farmer` migration drops and recreates the cattle table; if it is pending, do not apply the migration chain until its data-preserving remediation has been planned.
+**Important:** The factory dashboard requires a factory user and matching `Factory` profile. Factory receipt and production data come from milk batches created by a collection-centre account.
 
-The factory migration itself adds tables and nullable processing-batch fields, but it cannot make that earlier migration safe.
+## 21. Git Workflow for Team Development
 
-The factory dashboard requires a factory user and matching `Factory` profile. Factory receipt and production data come from milk batches created by a collection-centre account through the collection-centre workspace.
+Avoid committing directly to `main`.
 
-## Important reminders
+**Step 1: Update the main branch**
 
-- Keep `backend/.env` local and private.
+```powershell
+git switch main
+git pull origin main
+```
+
+**Step 2: Create a feature branch**
+
+```powershell
+git switch -c feature/your-task
+```
+
+**Step 3: Stage and commit changes**
+
+```powershell
+git add .
+git commit -m "Describe your change"
+```
+
+**Step 4: Push the branch**
+
+```powershell
+git push -u origin feature/your-task
+```
+
+**Step 5: Create a Pull Request**
+
+Open GitHub and create a Pull Request to merge your branch into `main`.
+
+Coordinate changes involving Prisma schema, migrations, authentication, blockchain configuration and API configuration with the project maintainer.
+
+Before running `git add .`, verify that no environment files, credentials, private keys or generated dependencies are included.
+
+## 22. Troubleshooting
+
+### Browser shows a folder listing at 127.0.0.1:5500
+
+- Do not use VS Code Live Server.
+- Run `bun run dev` from the repository root.
+- Open the URL displayed in the terminal.
+
+### DATABASE_URL is not defined
+
+- Check that `backend/.env` exists.
+- Verify that `DATABASE_URL` is spelled correctly.
+- Restart the backend.
+
+### Prisma cannot connect to Supabase
+
+- Verify database URLs.
+- Check network connectivity and database permissions.
+- Contact the project maintainer if access is unavailable.
+
+### Frontend registration or login fails
+
+- Confirm the backend is running on port `3000`.
+- Verify the frontend API URL.
+- Check browser console and backend terminal errors.
+- Verify CORS and proxy configuration.
+
+### Fabric connection fails
+
+- Check whether the maintainer's Fabric network is running.
+- Verify remote connectivity and port `7051`.
+- Check Docker peer port mapping.
+- Verify TLS certificates and peer hostname.
+- Verify identity certificate and private key.
+- Check channel, chaincode and identity permissions.
+
+### Fabric works on maintainer's laptop but not on teammates' laptops
+
+This may indicate a remote connectivity, Docker port mapping, firewall, VPN or TLS certificate issue.
+
+Use the maintainer's reachable IP address instead of `localhost`.
+
+### Port 3000 is already in use
+
+Stop the conflicting process or coordinate a different backend port and update the frontend API configuration accordingly.
+
+## 23. Important Reminders
+
+- Keep `backend/.env` private.
 - Never commit Fabric certificates or private keys.
-- Do not run `prisma migrate reset` on the shared database.
-- Do not commit directly to `main` unless the team agrees.
-- Pull the latest changes before starting new work.
-- Coordinate schema, migration, authentication, and blockchain changes with the project maintainer.
-- The shared Fabric network is available only while the maintainer's network and laptop are running.
+- Never run `prisma migrate reset` on the shared database.
+- Coordinate database schema and migration changes.
+- Do not commit directly to `main` without team agreement.
+- Pull the latest changes before starting new development work.
+- Keep the shared Fabric network running when blockchain functionality is required.
+- Use only authorized database and blockchain credentials.
+
+---
+
+**ResiduGuard – Cattle Health. Safe Milk. Compliant Supply Chain.**
