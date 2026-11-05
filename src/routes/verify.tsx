@@ -1,5 +1,5 @@
-
 import { createFileRoute } from "@tanstack/react-router";
+import residuguardLogo from "@/assets/residuguard-logo.png";
 import { useState, type FormEvent } from "react";
 import {
   ArrowRight,
@@ -143,10 +143,18 @@ function normalizeSourceBatches(value: unknown): SourceMilkBatch[] {
 
     return {
       batchId: item?.batchId ?? "Unknown batch",
+
       collectionCentre: centre,
-      collectionDate: item?.collectionDate,
+
+      collectionDate:
+        item?.collectionDate ??
+        item?.collectedAt ??
+        centre?.collectedAt,
+
       quantityLitres: asNumber(item?.quantityLitres),
+
       farmOrigins: normalizeFarmOrigins(item?.farmOrigins),
+
       events: normalizeEvents(item?.events),
     };
   });
@@ -454,13 +462,21 @@ function VerifyPage() {
     <div className="min-h-screen bg-[#f8faf8]">
       <header className="border-b border-gray-100 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-<div className="flex items-center gap-2">
-  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-700 text-lg font-bold text-white">
-    R
+<div className="flex items-center gap-3">
+  <img
+    src={residuguardLogo}
+    alt="ResiduGuard Logo"
+    className="h-11 w-11 object-contain"
+  />
+
+  <div className="leading-tight">
+    <span className="block text-xl font-extrabold tracking-tight text-gray-900">
+      Residu<span className="text-green-700">Guard</span>
+    </span>
+    <span className="block text-[9px] font-medium uppercase tracking-widest text-gray-500">
+      Dairy Traceability Portal
+    </span>
   </div>
-  <span className="text-xl font-extrabold tracking-tight text-gray-900">
-    Residu<span className="text-green-700">Guard</span>
-  </span>
 </div>
           <a
             href="/"

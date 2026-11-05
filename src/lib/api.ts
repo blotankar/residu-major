@@ -863,3 +863,163 @@ export type CreateResidueScreeningResponse = {
     error: string | null;
   };
 };
+
+
+// ==========================================
+// REGULATORY AUTHORITY APIs
+// ==========================================
+
+export type AuthorityDashboardData = {
+  registeredAnimals: number;
+  treatmentsOnRecord: number;
+  animalsUnderWithdrawal: number;
+  batchCompliance: {
+    total: number;
+    safe: number;
+    onHold: number;
+    safePercentage: number;
+  };
+};
+
+export type AuthorityComplianceRecord = {
+  id: string;
+  cattleId: string;
+  animalName: string | null;
+  breed: string | null;
+  farmer: string;
+  village: string;
+  antibiotic: string;
+  veterinarian: string;
+  administeredAt: string | null;
+  withdrawalClearanceDate: string | null;
+  status: "Under withdrawal" | "Cleared" | "No treatment";
+  treatmentCount: number;
+};
+
+export type AuthorityAuditEvent = {
+  id: string;
+  eventType: string;
+  entityType: string;
+  entityId: string;
+  payload: unknown;
+  blockchainTxId: string | null;
+  blockNumber: string | number | null;
+  blockchainStatus: string | null;
+  createdAt: string;
+};
+
+export type AuthoritySupplyChainData = {
+  milkBatches: {
+    id: string;
+    batchId: string;
+    date: string;
+    volumeL: number | string;
+    status: string;
+    collectionCentre: {
+      name: string;
+      code: string;
+    };
+    residueScreenings: {
+      id: string;
+      sampleId: string;
+      result: string;
+      panelComplete: boolean;
+      testedAt: string;
+      measurements: {
+        medicineNameAtTest: string;
+        measuredValue: number | string;
+        measuredUnit: string;
+        mrlValueAtTest: number | string;
+        mrlUnitAtTest: string;
+        result: string;
+      }[];
+    }[];
+    factoryReceipt: {
+      receivedQuantityL: number | string;
+      receivedAt: string;
+      discrepancyNote: string | null;
+    } | null;
+    qualityInspections: {
+      id: string;
+      qualityResult: string;
+      status: string;
+      inspectedAt: string;
+    }[];
+  }[];
+
+  processingBatches: {
+    id: string;
+    batchId: string;
+    date: string;
+    volumeL: number | string;
+    product: string;
+    packs: number;
+    status: string;
+    factory: {
+      name: string;
+      code: string;
+    };
+    sourceMilkBatches: {
+      milkBatch: {
+        batchId: string;
+      };
+    }[];
+    productLots: {
+      id: string;
+      lotId: string;
+      productName: string;
+      status: string;
+    }[];
+  }[];
+
+  dispatches: {
+    id: string;
+    dispatchId: string;
+    destination: string;
+    dispatchedAt: string;
+    vehicleId: string | null;
+    status: string;
+    factory: {
+      name: string;
+      code: string;
+    };
+    items: {
+      id: string;
+      quantityL: number | string;
+      productLot: {
+        lotId: string;
+        productName: string;
+      };
+    }[];
+  }[];
+};
+
+export function fetchAuthorityDashboard() {
+  return apiRequest<AuthorityDashboardData>(
+    "/api/authority/dashboard",
+  );
+}
+
+export function fetchAuthorityCompliance() {
+  return apiRequest<AuthorityComplianceRecord[]>(
+    "/api/authority/compliance",
+  );
+}
+
+export function fetchAuthorityAuditLedger() {
+  return apiRequest<AuthorityAuditEvent[]>(
+    "/api/authority/audit-ledger",
+  );
+}
+
+export function fetchAuthoritySupplyChain() {
+  return apiRequest<AuthoritySupplyChainData>(
+    "/api/authority/supply-chain",
+  );
+}
+
+export function fetchAuthorityMRL() {
+  return apiRequest<ApiMedicineMRL[]>(
+    "/api/authority/mrl",
+  );
+}

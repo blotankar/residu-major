@@ -21,14 +21,13 @@ function optionalString(value: unknown): string | undefined {
 }
 
 function optionalNumber(value: unknown): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
+  if (value === null || value === undefined) {
+    return undefined;
   }
 
-  return undefined;
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function parseLedgerBatch(
@@ -70,10 +69,14 @@ function toConsumerBatch(batch: Record<string, unknown>) {
 
   return {
     batchId: optionalString(batch.batchId),
+
     collectionCentre: {
       name: optionalString(batch.collectionCentreName),
-      collectedAt: optionalString(batch.collectedAt),
     },
+
+    // Expose collection date in the format expected by the frontend.
+    collectionDate: optionalString(batch.collectedAt),
+
     quantityLitres: optionalNumber(batch.quantityLitres),
     farmOrigins,
     events,
@@ -108,24 +111,31 @@ async function getSourceMilkRecords(
 function getProductionInfo(processingBatch: {
   batchId: string;
   product: string;
-  completedAt: Date | null;
+  date: Date;
+  volumeL: number;
   inputVolumeL: unknown;
   outputVolumeL: unknown;
   wastageL: unknown;
+  packs: number;
+  status: string;
+  completedAt: Date | null;
 }) {
   return {
-    productionBatchId: processingBatch.batchId,
+    batchId: processingBatch.batchId,
     product: processingBatch.product,
-    completedAt: processingBatch.completedAt?.toISOString(),
-    inputVolumeL: optionalNumber(
-      processingBatch.inputVolumeL as string | number | undefined,
-    ),
-    outputVolumeL: optionalNumber(
-      processingBatch.outputVolumeL as string | number | undefined,
-    ),
-    wastageL: optionalNumber(
-      processingBatch.wastageL as string | number | undefined,
-    ),
+
+    date: processingBatch.date.toISOString(),
+    volumeL: optionalNumber(processingBatch.volumeL),
+
+    inputVolumeL: optionalNumber(processingBatch.inputVolumeL),
+    outputVolumeL: optionalNumber(processingBatch.outputVolumeL),
+    wastageL: optionalNumber(processingBatch.wastageL),
+
+    // These two fields must also be returned.
+    packs: processingBatch.packs,
+    status: processingBatch.status,
+
+    completedAt: processingBatch.completedAt?.toISOString() ?? null,
   };
 }
 

@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ShieldCheck, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
+import residuguardLogo from "@/assets/residuguard-logo.png";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/session";
@@ -8,18 +9,24 @@ import type { RoleId } from "@/lib/residuguard-data";
 
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link to="/" className="flex items-center gap-2.5">
-      <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground">
-        <ShieldCheck className="size-5" aria-hidden />
-      </span>
-      <span className="leading-tight">
-        <span className="block font-heading text-lg font-semibold text-heading">ResiduGuard</span>
-        {!compact ? (
-          <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
+    <Link to="/" className="flex items-center gap-3">
+      <img
+        src={residuguardLogo}
+        alt="ResiduGuard logo"
+        className="h-12 w-auto object-contain"
+      />
+
+      {!compact && (
+        <span className="leading-tight">
+          <span className="block font-heading text-xl font-bold text-heading">
+            ResiduGuard
+          </span>
+
+          <span className="block text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
             Dairy Traceability Portal
           </span>
-        ) : null}
-      </span>
+        </span>
+      )}
     </Link>
   );
 }

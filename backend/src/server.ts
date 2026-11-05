@@ -5,6 +5,7 @@ import { handleFactoryRequest } from "./routes/factory";
 import { handleMrlRequest } from "./routes/mrl";
 import { handleTreatmentRequest } from "./routes/treatments";
 import { handleCollectionCentreFarmerRequest } from "./routes/collection-centre-farmers";
+import { handleAuthorityRequest } from "./routes/authority";
 import {
   authenticateRequest,
   requireRoles,
@@ -363,6 +364,30 @@ if (traceabilityMatch) {
   }
 
   const response = await handleTraceabilityRequest(req, batchId);
+
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+
+  return response;
+}
+
+// ---------------- REGULATORY AUTHORITY ----------------
+
+if (path.startsWith("/api/authority/")) {
+  const user = authenticateRequest(req);
+
+  if (user instanceof Response) {
+    return user;
+  }
+
+  const permission = requireRoles(user, ["authority"]);
+
+  if (permission) {
+    return permission;
+  }
+
+  const response = await handleAuthorityRequest(req, user);
 
   Object.entries(corsHeaders).forEach(([key, value]) => {
     response.headers.set(key, value);

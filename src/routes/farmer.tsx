@@ -1,7 +1,7 @@
-
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import residuguardLogo from "@/assets/residuguard-logo.png";
 import {
   createCattle,
   fetchCattle,
@@ -291,12 +291,22 @@ function FarmerDashboard() {
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5">
-          <div>
-            <h1 className="text-3xl font-bold text-emerald-800">
-              ResiduGuard
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">Farmer Dashboard</p>
-          </div>
+         <div className="flex items-center gap-3">
+  <img
+    src={residuguardLogo}
+    alt="ResiduGuard Logo"
+    className="h-12 w-12 object-contain"
+  />
+
+  <div>
+    <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+      Residu<span className="text-emerald-700">Guard</span>
+    </h1>
+    <p className="mt-1 text-sm text-slate-500">
+      Farmer Dashboard
+    </p>
+  </div>
+</div>
 
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-600">

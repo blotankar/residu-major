@@ -15,18 +15,18 @@ export interface RoleDef {
 export const roles: RoleDef[] = [
   {
     id: "farmer",
-    label: "Farmer",
-    person: "Ramesh Patil",
-    org: "FARM-KOL-014, Kolewadi",
+    label: "Farmer Dashboard",
+    person: "Farmer",
+    org: "FARM",
     description: "Cattle register, treatment history, withdrawal status and milk records.",
     path: "/farmer",
     icon: Tractor,
   },
   {
     id: "veterinarian",
-    label: "Veterinarian",
-    person: "Dr. Anjali Kulkarni",
-    org: "Reg. MVC/2016/4417",
+    label: "Veterinarian Dashboard",
+    person: "Veterinarian",
+    org: " ",
     description: "Record antibiotic treatments and set withdrawal periods.",
     path: "/veterinarian",
     icon: Stethoscope,
@@ -43,7 +43,7 @@ export const roles: RoleDef[] = [
   {
     id: "factory",
     label: "Factory",
-    person: "Satara Co-operative Dairy Plant",
+    person: "Factory Dashboard",
     org: "Processing unit",
     description: "Link eligible milk batches to processing batches and packaging.",
     path: "/factory",
@@ -52,7 +52,7 @@ export const roles: RoleDef[] = [
   {
     id: "authority",
     label: "Authority / Admin",
-    person: "State Dairy Authority",
+    person: "Authority Dashboard",
     org: "Regulatory oversight",
     description: "Compliance oversight, MRL reference data and the audit ledger.",
     path: "/authority",

@@ -116,7 +116,7 @@ The existing ResiduGuard blockchain network uses:
 | Configuration | Value |
 |---|---|
 | Hyperledger Fabric version | 2.5.x |
-| Channel name | `residuGuard-channel` |
+| Channel name | `residuguard-channel` |
 | Chaincode name | `residuguard` |
 | Organization | `Org1MSP` |
 | Peer | `peer0.org1.example.com` |
