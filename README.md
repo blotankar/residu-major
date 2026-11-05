@@ -48,31 +48,70 @@ By combining database management with blockchain technology, ResiduGuard improve
 
 ## 4. System Architecture
 
-ResiduGuard follows a multi-tier web application architecture consisting of the following layers:
+ResiduGuard follows an integrated web-based architecture in which different stakeholders interact with a centralized portal to manage cattle health, antibiotic usage, milk collection, processing and supply-chain traceability.
 
-**1. Presentation Layer**
-- React and TypeScript.
-- Role-based dashboards and interfaces.
-- User authentication and navigation.
+The system consists of the following major components:
 
-**2. Application Layer**
-- Bun and TypeScript backend.
-- REST API endpoints.
-- Authentication and authorization.
-- Business logic and workflow management.
+### 4.1 Stakeholder Interfaces
 
-**3. Data Layer**
-- PostgreSQL database hosted on Supabase.
-- Prisma ORM for database operations.
-- Stores users, cattle, treatments, milk batches, residue tests and compliance records.
+The portal provides role-based interfaces for six stakeholders:
 
-**4. Blockchain Layer**
-- Hyperledger Fabric 2.5.x.
-- Permissioned blockchain network.
-- Dedicated channel and deployed ResiduGuard chaincode.
-- Maintains tamper-evident milk traceability records.
+- **Farmer:** Manages cattle information, health records, treatment history and milk production.
+- **Veterinarian:** Records antibiotic treatments and monitors withdrawal periods.
+- **Collection Centre:** Records milk intake, manages collection details and tracks milk batches.
+- **Factory:** Manages milk receipt, quality inspection, production, inventory, dispatch and residue testing.
+- **Customer:** Accesses product information and verifies available milk batch traceability details.
+- **Administrator:** Manages users, roles, system activities and compliance information.
 
-PostgreSQL serves as the operational database, while Hyperledger Fabric provides an additional layer of verifiable and tamper-evident traceability.
+### 4.2 Centralized Application
+
+All stakeholder interfaces communicate with the ResiduGuard application through REST APIs.
+
+The application, developed using React, TypeScript, Bun and TypeScript, handles:
+
+- User authentication and role-based authorization.
+- Cattle and health record management.
+- Antibiotic treatment and withdrawal-period monitoring.
+- Milk collection and batch management.
+- Factory operations and residue testing.
+- MRL compliance verification.
+- Supply-chain traceability.
+
+### 4.3 Database Management
+
+ResiduGuard uses PostgreSQL hosted on Supabase as its operational database. Prisma ORM manages database queries and interactions.
+
+The database maintains:
+- User and role information.
+- Cattle and health records.
+- Antibiotic treatment records.
+- Milk batch information.
+- Residue test results.
+- Factory operations and compliance records.
+
+### 4.4 Blockchain Integration
+
+Hyperledger Fabric 2.5.x is integrated into ResiduGuard to maintain tamper-evident milk traceability records.
+
+The application connects to a permissioned blockchain network through its backend. Blockchain transactions provide an additional layer of transparency and verifiability for supply-chain records.
+
+The blockchain network uses:
+- Channel: `residuguard-channel`
+- Chaincode: `residuguard`
+- Organization: `Org1MSP`
+- Peer: `peer0.org1.example.com`
+
+### 4.5 System Interaction Flow
+
+The overall system connects stakeholders through the following supply-chain process:
+
+**Farm → Collection Centre → Factory → Customer**
+
+Cattle health and antibiotic treatment information is maintained by farmers and veterinarians. Milk collection details are recorded at collection centres. Factories manage incoming batches, processing, residue testing and compliance information. Customers can access available product and batch traceability details.
+
+PostgreSQL maintains the operational application data, while Hyperledger Fabric provides tamper-evident blockchain records for traceability.
+
+Together, these components support an integrated and transparent dairy supply-chain management system.
 
 ## 5. Technology Stack
 
